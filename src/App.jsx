@@ -4,18 +4,32 @@ import { supabase } from "./lib/supabase";
 import { GraduationCap, Handshake, Camera, Trophy, Briefcase, ImageIcon, Menu, X } from "lucide-react";
 import "./App.css";
 
-const REUNION_DATE = new Date("2026-12-31T10:00:00");
+// ── Fallback values (used until DB loads or if DB is empty) ───
+const FALLBACK = {
+  event_name:       "5th Anniversary Reunion",
+  event_tagline:    "Different Paths • One Beginning • One Family",
+  event_date:       "2026-12-31T10:00:00",
+  event_venue:      "",
+  hero_description: "Five years after leaving SHS, we're coming together once again to reconnect, remember, celebrate and create new memories.",
+  about_copy:       "We entered SHS as young students with different dreams. In 2021, we left as classmates ready to face the world. Today, after five incredible years, we are coming together to celebrate how far we've travelled and the people we've become.",
+  footer_copyright: "© 2026 Class of 2021 Reunion. All rights reserved.",
+  registration_open: "true",
+};
+
+const FALLBACK_PROGRAMME = [
+  { id: "1", time_label: "10:00 AM", title: "Arrival & Registration",     description: "Welcome, check-in and networking." },
+  { id: "2", time_label: "11:00 AM", title: "Opening Ceremony",           description: "Prayer, welcome address and introductions." },
+  { id: "3", time_label: "12:00 PM", title: "SHS Memories & Games",       description: "Trivia, old pictures, stories and fun activities." },
+  { id: "4", time_label: "1:00 PM",  title: "Lunch & Networking",         description: "Good food, conversations and connections." },
+  { id: "5", time_label: "3:00 PM",  title: "Awards & Recognition",       description: "Celebrating classmates and our teachers." },
+  { id: "6", time_label: "4:00 PM",  title: "Music, Dance & Photography", description: "Let's make some unforgettable memories." },
+];
 
 function useCountdown(target) {
-  const [timeLeft, setTimeLeft] = useState(() =>
-    getTimeLeft(target)
-  );
+  const [timeLeft, setTimeLeft] = useState(() => getTimeLeft(target));
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setTimeLeft(getTimeLeft(target));
-    }, 1000);
-
+    const id = setInterval(() => setTimeLeft(getTimeLeft(target)), 1000);
     return () => clearInterval(id);
   }, [target]);
 
@@ -24,10 +38,9 @@ function useCountdown(target) {
 
 function getTimeLeft(target) {
   const diff = Math.max(target - Date.now(), 0);
-
   return {
-    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-    hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+    days:    Math.floor(diff / (1000 * 60 * 60 * 24)),
+    hours:   Math.floor((diff / (1000 * 60 * 60)) % 24),
     minutes: Math.floor((diff / (1000 * 60)) % 60),
     seconds: Math.floor((diff / 1000) % 60),
   };
@@ -37,25 +50,39 @@ function pad(n) {
   return String(n).padStart(2, "0");
 }
 
-
 function App() {
-  const countdown = useCountdown(REUNION_DATE);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // ── Public memory wall ────────────────────────────────────────────────────────
-  const [memories, setMemories]       = useState([]);
+  // ── Site settings from DB ─────────────────────────────────
+  const [cfg, setCfg]             = useState(FALLBACK);
+  const [programme, setProgramme] = useState(FALLBACK_PROGRAMME);
+
+  // ── Public memory wall ────────────────────────────────────
+  const [memories,        setMemories]        = useState([]);
   const [memoriesLoading, setMemoriesLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from("memories_wall")
-      .select("id, memory_text, display_name, is_anonymous, approved_at")
-      .order("approved_at", { ascending: false })
-      .then(({ data }) => {
-        setMemories(data || []);
-        setMemoriesLoading(false);
-      });
+    // Load site settings + programme + memories in parallel
+    Promise.all([
+      supabase.from("site_settings").select("key, value"),
+      supabase.from("programme_items").select("*").order("sort_order"),
+      supabase.from("memories_wall")
+        .select("id, memory_text, display_name, is_anonymous, approved_at")
+        .order("approved_at", { ascending: false }),
+    ]).then(([{ data: sData }, { data: pData }, { data: mData }]) => {
+      if (sData?.length) {
+        const map = {};
+        sData.forEach(({ key, value }) => { map[key] = value; });
+        setCfg((prev) => ({ ...prev, ...map }));
+      }
+      if (pData?.length) setProgramme(pData);
+      setMemories(mData || []);
+      setMemoriesLoading(false);
+    });
   }, []);
+
+  const reunionDate = new Date(cfg.event_date || FALLBACK.event_date);
+  const countdown   = useCountdown(reunionDate);
 
   // Close mobile menu when navigating to a section
   function handleNavClick() {
@@ -138,18 +165,22 @@ function App() {
             <div className="badge" aria-hidden="true"><GraduationCap size={18} aria-hidden="true" /> CLASS OF 2021</div>
 
             <h1 id="hero-heading">
-              5th Anniversary
-              <span>Reunion</span>
+              {cfg.event_name}
             </h1>
 
             <p className="hero-theme">
-              Different Paths • One Beginning • One Family
+              {cfg.event_tagline}
             </p>
 
             <p className="hero-description">
-              Five years after leaving SHS, we're coming together once again
-              to reconnect, remember, celebrate and create new memories.
+              {cfg.hero_description}
             </p>
+
+            {cfg.event_venue && (
+              <p className="hero-venue">
+                <strong>Venue:</strong> {cfg.event_venue}
+              </p>
+            )}
 
             <div className="hero-buttons">
               <Link to="/register" className="primary-button">
@@ -214,10 +245,7 @@ function App() {
           </h2>
 
           <p>
-            We entered SHS as young students with different dreams.
-            In 2021, we left as classmates ready to face the world.
-            Today, after five incredible years, we are coming together
-            to celebrate how far we've travelled and the people we've become.
+            {cfg.about_copy}
           </p>
 
           <div className="stats" role="list" aria-label="Class statistics">
@@ -284,48 +312,15 @@ function App() {
           </h2>
 
           <ol className="timeline" aria-label="Event schedule">
-            <li className="timeline-item">
-              <span>10:00 AM</span>
-              <div>
-                <h3>Arrival &amp; Registration</h3>
-                <p>Welcome, check-in and networking.</p>
-              </div>
-            </li>
-            <li className="timeline-item">
-              <span>11:00 AM</span>
-              <div>
-                <h3>Opening Ceremony</h3>
-                <p>Prayer, welcome address and introductions.</p>
-              </div>
-            </li>
-            <li className="timeline-item">
-              <span>12:00 PM</span>
-              <div>
-                <h3>SHS Memories &amp; Games</h3>
-                <p>Trivia, old pictures, stories and fun activities.</p>
-              </div>
-            </li>
-            <li className="timeline-item">
-              <span>1:00 PM</span>
-              <div>
-                <h3>Lunch &amp; Networking</h3>
-                <p>Good food, conversations and connections.</p>
-              </div>
-            </li>
-            <li className="timeline-item">
-              <span>3:00 PM</span>
-              <div>
-                <h3>Awards &amp; Recognition</h3>
-                <p>Celebrating classmates and our teachers.</p>
-              </div>
-            </li>
-            <li className="timeline-item">
-              <span>4:00 PM</span>
-              <div>
-                <h3>Music, Dance &amp; Photography</h3>
-                <p>Let's make some unforgettable memories.</p>
-              </div>
-            </li>
+            {programme.map((item) => (
+              <li key={item.id} className="timeline-item">
+                <span>{item.time_label}</span>
+                <div>
+                  <h3>{item.title}</h3>
+                  {item.description && <p>{item.description}</p>}
+                </div>
+              </li>
+            ))}
           </ol>
         </section>
 
@@ -405,10 +400,10 @@ function App() {
           <span>CLASS OF 2021</span>
         </div>
 
-        <p>Different Paths • One Beginning • One Family</p>
+        <p>{cfg.event_tagline}</p>
 
         <div className="footer-bottom">
-          <small>© 2026 Class of 2021 Reunion. All rights reserved.</small>
+          <small>{cfg.footer_copyright}</small>
         </div>
       </footer>
     </div>

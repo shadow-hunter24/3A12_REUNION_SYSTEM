@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import {
   LayoutDashboard, Users, Wallet, Shirt, Trophy,
-  Camera, Ticket, Globe, Menu, X, LogOut,
+  Camera, Ticket, Globe, Menu, X, LogOut, Settings,
 } from "lucide-react";
 import "./AdminLayout.css";
 
@@ -15,6 +15,7 @@ const menu = [
   { name: "Awards",        path: "/admin/awards",        Icon: Trophy },
   { name: "Memories",      path: "/admin/memories",      Icon: Camera },
   { name: "Check-In",      path: "/admin/checkin",       Icon: Ticket },
+  { name: "Settings",      path: "/admin/settings",      Icon: Settings },
 ];
 
 export default function AdminLayout() {

@@ -23,6 +23,7 @@ import Tshirts from "./admin/Tshirts.jsx";
 import AdminAwards from "./admin/AdminAwards.jsx";
 import Memories from "./admin/Memories.jsx";
 import Checkin from "./admin/Checkin.jsx";
+import Settings from "./admin/Settings.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -49,6 +50,7 @@ createRoot(document.getElementById("root")).render(
           <Route path="awards"         element={<AdminAwards />} />
           <Route path="memories"       element={<Memories />} />
           <Route path="checkin"        element={<Checkin />} />
+          <Route path="settings"       element={<Settings />} />
         </Route>
 
       </Routes>

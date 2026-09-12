@@ -178,6 +178,21 @@ function CharCounter({ value, max }) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Register() {
+  // Load global default contribution amount from site_settings
+  const [defaultContribution, setDefaultContribution] = useState(500);
+
+  useEffect(() => {
+    supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "default_contribution")
+      .single()
+      .then(({ data }) => {
+        const val = Number(data?.value);
+        if (val > 0) setDefaultContribution(val);
+      });
+  }, []);
+
   const [formData, setFormData] = useState({
     full_name: "",
     nickname: "",
@@ -336,7 +351,7 @@ export default function Register() {
     // Create contribution record
     await supabase.from("contributions").insert({
       classmate_id:    registeredClassmate.id,
-      expected_amount: 500.0,
+      expected_amount: defaultContribution,
       amount_paid:     0.0,
       payment_status:  "UNPAID",
     });
