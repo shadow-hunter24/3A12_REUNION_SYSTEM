@@ -5,6 +5,7 @@ import {
   LayoutDashboard, Users, Wallet, Shirt, Trophy,
   Camera, Ticket, Globe, Menu, X, LogOut, Settings,
 } from "lucide-react";
+import NotificationBell from "./NotificationBell";
 import "./AdminLayout.css";
 
 const menu = [
@@ -87,17 +88,20 @@ export default function AdminLayout() {
       {/* ── MOBILE TOP BAR ── */}
       <div className="admin-topbar" role="banner">
         <div className="admin-brand-mobile" aria-hidden="true">3A12</div>
-        <button
-          className="mobile-menu-button"
-          onClick={() => setMobileOpen((prev) => !prev)}
-          aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
-          aria-expanded={mobileOpen}
-          aria-controls="admin-sidebar"
-        >
-          <span aria-hidden="true">
-            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-          </span>
-        </button>
+        <div className="admin-topbar-right">
+          <NotificationBell />
+          <button
+            className="mobile-menu-button"
+            onClick={() => setMobileOpen((prev) => !prev)}
+            aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={mobileOpen}
+            aria-controls="admin-sidebar"
+          >
+            <span aria-hidden="true">
+              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* ── SIDEBAR OVERLAY (mobile) ── */}
@@ -160,6 +164,8 @@ export default function AdminLayout() {
             <strong>Administrator</strong>
             <span title={user?.email}>{user?.email}</span>
           </div>
+
+          <NotificationBell />
 
           <button
             onClick={() => setShowLogoutConfirm(true)}
