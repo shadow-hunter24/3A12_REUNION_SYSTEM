@@ -281,7 +281,10 @@ export default function AdminAwards() {
     const { data: { user } } = await supabase.auth.getUser();
     const { error: e } = await supabase
       .from("award_finalists")
-      .insert({ category_id: categoryId, classmate_id: classmateId, added_by: user?.email || null });
+      .upsert(
+        { category_id: categoryId, classmate_id: classmateId, added_by: user?.email || null },
+        { onConflict: "category_id,classmate_id", ignoreDuplicates: true }
+      );
     if (e) { setError(e.message); return; }
     await loadData();
   }
@@ -308,7 +311,9 @@ export default function AdminAwards() {
       added_by:     user?.email || null,
     }));
 
-    const { error: e } = await supabase.from("award_finalists").insert(rows);
+    const { error: e } = await supabase
+      .from("award_finalists")
+      .upsert(rows, { onConflict: "category_id,classmate_id", ignoreDuplicates: true });
     if (e) { setError(e.message); return; }
     setMessage("All nominees added as finalists.");
     await loadData();
