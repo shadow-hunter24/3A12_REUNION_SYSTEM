@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import { AlertTriangle, Check, X, PartyPopper } from "lucide-react";
