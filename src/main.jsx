@@ -17,7 +17,7 @@ import Dashboard from "./admin/Dashboard.jsx";
 import Registrations from "./admin/Registrations.jsx";
 import Contributions from "./admin/Contributions.jsx";
 import Tshirts from "./admin/Tshirts.jsx";
-import Awards from "./admin/Awards.jsx";
+import Awards from "./admin/AdminAwards.jsx";
 import Memories from "./admin/Memories.jsx";
 import Checkin from "./admin/Checkin.jsx";
 
