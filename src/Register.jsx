@@ -79,6 +79,7 @@ export default function Register() {
       console.error(registrationError);
       setLoading(false);
       setError(
+        registrationError.message ||
         "Registration could not be completed. Please check your information and try again."
       );
       return;
