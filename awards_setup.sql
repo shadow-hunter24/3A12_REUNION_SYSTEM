@@ -130,8 +130,8 @@ BEGIN
   RETURN QUERY
     SELECT c.id, c.full_name, c.class_id
       FROM classmates c
-     WHERE c.class_id = TRIM(p_class_id)
-       AND REGEXP_REPLACE(c.phone, '[^0-9]', '', 'g')
+     WHERE UPPER(TRIM(c.class_id)) = UPPER(TRIM(p_class_id))
+       AND REGEXP_REPLACE(TRIM(c.phone), '[^0-9]', '', 'g')
          = REGEXP_REPLACE(TRIM(p_phone), '[^0-9]', '', 'g')
      LIMIT 1;
 END;
