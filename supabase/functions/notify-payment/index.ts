@@ -433,22 +433,19 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── Fetch contribution summary ───────────────────────────────────────────
-  const { data: contrib, error: contribErr } = await supabase
+  const { data: contrib } = await supabase
     .from("contributions")
     .select("expected_amount, amount_paid, payment_status")
     .eq("classmate_id", payment.classmate_id)
-    .single<ContributionRow>();
+    .maybeSingle<ContributionRow>();
 
-  if (contribErr || !contrib) {
-    console.error("Could not fetch contribution summary:", contribErr?.message);
-    return new Response("Contribution not found", { status: 404 });
-  }
-
+  // If no contribution row yet, use safe defaults
+  // (the trigger may not have run yet when the webhook fires)
   const firstName  = classmate.full_name.trim().split(" ")[0];
-  const totalPaid  = Number(contrib.amount_paid);
-  const expected   = Number(contrib.expected_amount);
+  const expected   = Number(contrib?.expected_amount ?? 500);
+  const totalPaid  = Number(contrib?.amount_paid ?? payment.amount);
   const balance    = Math.max(expected - totalPaid, 0);
-  const isFullyPaid = contrib.payment_status === "PAID" || balance === 0;
+  const isFullyPaid = (contrib?.payment_status === "PAID") || balance === 0;
 
   // ── Send payment confirmation email ─────────────────────────────────────
   try {
