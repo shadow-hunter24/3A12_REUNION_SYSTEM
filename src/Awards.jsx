@@ -1,306 +1,328 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import "./Awards.css";
 
-export default function Awards() {
-  const [classId, setClassId] = useState("");
-  const [phone, setPhone] = useState("");
+// ─── STEP CONSTANTS ───────────────────────────────────────────
+const STEP = {
+  VERIFY:    "verify",
+  BROWSE:    "browse",
+  NOMINATE:  "nominate",
+  VOTE:      "vote",
+};
 
-  const [member, setMember] = useState(null);
-  const [categories, setCategories] = useState([]);
+// Default icons for known award types
+const CATEGORY_ICONS = {
+  "Most Outstanding":   "🏆",
+  "Most Successful":    "💼",
+  "Most Supportive":    "❤️",
+  "Most Humorous":      "😂",
+  "Best Dressed":       "👔",
+  "Most Influential":   "🌟",
+  "Most Likely":        "🎯",
+  "Best Couple":        "💑",
+  "Most Improved":      "📈",
+  "Class Clown":        "🤣",
+};
 
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [nominees, setNominees] = useState([]);
+function getCategoryIcon(category) {
+  if (category.icon && category.icon !== "🏆") return category.icon;
+  for (const [key, icon] of Object.entries(CATEGORY_ICONS)) {
+    if (category.name.includes(key)) return icon;
+  }
+  return "🏆";
+}
 
+export default function AwardsPage() {
+  // ── Auth state
+  const [classId, setClassId]   = useState("");
+  const [phone, setPhone]       = useState("");
+  const [member, setMember]     = useState(null);
+
+  // ── Data
+  const [categories, setCategories]     = useState([]);
+  const [allClassmates, setAllClassmates] = useState([]);
+  const [finalists, setFinalists]       = useState([]);
+  const [myNominations, setMyNominations] = useState({});  // categoryId → nomineeId
+  const [myVotes, setMyVotes]           = useState({});    // categoryId → true
+
+  // ── UI state
+  const [step, setStep]                   = useState(STEP.VERIFY);
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [nomineeSearch, setNomineeSearch]   = useState("");
   const [selectedNominee, setSelectedNominee] = useState("");
-  const [reason, setReason] = useState("");
+  const [reason, setReason]               = useState("");
 
-  const [loading, setLoading] = useState(false);
+  // ── Loading / feedback
+  const [loading, setLoading]       = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [message, setMessage]       = useState("");
+  const [error, setError]           = useState("");
 
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
+  // Load categories on mount (public — no auth needed)
   useEffect(() => {
     loadCategories();
   }, []);
 
   async function loadCategories() {
-    setLoading(true);
+    const { data, error: e } = await supabase
+      .from("award_categories")
+      .select("*")
+      .order("created_at", { ascending: true });
 
-    const { data, error: categoryError } =
-      await supabase
-        .from("award_categories")
-        .select("*")
-        .order("created_at", {
-          ascending: true,
-        });
-
-    if (categoryError) {
-      setError(categoryError.message);
-    } else {
-      setCategories(data || []);
-    }
-
-    setLoading(false);
+    if (!e) setCategories(data || []);
   }
 
-  async function verifyMember(event) {
-    event.preventDefault();
+  // ─── STEP 1: VERIFY ────────────────────────────────────────
 
+  async function handleVerify(e) {
+    e.preventDefault();
     setLoading(true);
-    setMessage("");
     setError("");
+    setMessage("");
 
     try {
-      const { data, error: verifyError } =
-        await supabase.rpc(
-          "verify_reunion_member",
-          {
-            p_class_id: classId.trim(),
-            p_phone: phone.trim(),
-          }
-        );
+      const { data, error: rpcError } = await supabase.rpc(
+        "verify_reunion_member",
+        { p_class_id: classId.trim(), p_phone: phone.trim() }
+      );
 
-      if (verifyError) {
-        throw verifyError;
-      }
-
+      if (rpcError) throw rpcError;
       if (!data || data.length === 0) {
         throw new Error(
-          "We could not verify your Classmate ID and phone number."
+          "We couldn't verify your details. Please check your Classmate ID and phone number."
         );
       }
 
-      setMember(data[0]);
+      const verified = data[0];
+      setMember(verified);
 
-      setMessage(
-        `Welcome, ${data[0].full_name}! You can now participate in the awards.`
-      );
+      // Load this member's existing nominations and votes
+      await loadMyActivity(verified.id);
+
+      setStep(STEP.BROWSE);
+      setMessage(`Welcome, ${verified.full_name}! Select an award below.`);
     } catch (err) {
-      console.error(err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }
 
+  async function loadMyActivity(memberId) {
+    // Load nominations this member has already submitted
+    const { data: nomData } = await supabase
+      .from("award_nominations")
+      .select("category_id, nominee_id")
+      .eq("nominator_id", memberId);
+
+    const nomMap = {};
+    (nomData || []).forEach((n) => { nomMap[n.category_id] = n.nominee_id; });
+    setMyNominations(nomMap);
+
+    // Load votes this member has already cast
+    const { data: voteData } = await supabase
+      .from("award_votes")
+      .select("category_id")
+      .eq("voter_id", memberId);
+
+    const voteMap = {};
+    (voteData || []).forEach((v) => { voteMap[v.category_id] = true; });
+    setMyVotes(voteMap);
+  }
+
+  // ─── STEP 2: BROWSE — open a category ──────────────────────
+
   async function openCategory(category) {
-    setSelectedCategory(category);
+    setActiveCategory(category);
     setSelectedNominee("");
+    setNomineeSearch("");
     setReason("");
     setMessage("");
     setError("");
 
-    if (
-      category.nomination_open ||
-      category.voting_open
-    ) {
-      const { data, error: nomineeError } =
-        await supabase.rpc(
-          "get_award_nominees",
-          {
-            p_category_id: category.id,
-          }
-        );
-
-      if (nomineeError) {
-        setError(nomineeError.message);
-        return;
-      }
-
-      setNominees(data || []);
-    }
-  }
-
-  async function submitNomination() {
-    if (!member || !selectedCategory || !selectedNominee) {
-      setError("Please select a nominee.");
-      return;
-    }
-
-    setActionLoading(true);
-    setMessage("");
-    setError("");
-
-    try {
-      const { data, error: nominationError } =
-        await supabase.rpc(
-          "submit_award_nomination",
-          {
-            p_nominator_id: member.id,
-            p_category_id: selectedCategory.id,
-            p_nominee_id: selectedNominee,
-            p_reason: reason,
-          }
-        );
-
-      if (nominationError) {
-        throw nominationError;
-      }
-
-      if (!data?.success) {
-        throw new Error(
-          data?.message || "Nomination could not be submitted."
-        );
-      }
-
-      setMessage(
-        data.message ||
-          "Nomination submitted successfully."
+    if (category.nomination_open) {
+      // Load all classmates (name + class ID only — no private data)
+      setLoading(true);
+      const { data, error: rpcError } = await supabase.rpc(
+        "get_classmates_for_nomination",
+        { p_nominator_id: member.id }
       );
+      setLoading(false);
 
-      setReason("");
+      if (rpcError) { setError(rpcError.message); return; }
+      setAllClassmates(data || []);
 
-      const { data: refreshedNominees } =
-        await supabase.rpc(
-          "get_award_nominees",
-          {
-            p_category_id: selectedCategory.id,
-          }
-        );
+      // Pre-select their previous nominee if they already nominated
+      const prevNominee = myNominations[category.id];
+      if (prevNominee) setSelectedNominee(prevNominee);
 
-      setNominees(refreshedNominees || []);
-    } catch (err) {
-      console.error(err);
-      setError(err.message);
-    } finally {
-      setActionLoading(false);
+      setStep(STEP.NOMINATE);
+    } else if (category.voting_open) {
+      // Load finalists approved by admin
+      setLoading(true);
+      const { data, error: rpcError } = await supabase.rpc(
+        "get_finalists_for_voting",
+        { p_category_id: category.id }
+      );
+      setLoading(false);
+
+      if (rpcError) { setError(rpcError.message); return; }
+      setFinalists(data || []);
+      setStep(STEP.VOTE);
+    } else {
+      setMessage("This award is not yet open for nominations or voting.");
     }
   }
 
-  async function submitVote() {
-    if (!member || !selectedCategory || !selectedNominee) {
-      setError("Please select a nominee.");
-      return;
-    }
+  // ─── STEP 3: NOMINATE ──────────────────────────────────────
 
-    const confirmed = window.confirm(
-      `Are you sure you want to vote for this classmate for "${selectedCategory.name}"?\n\nYou can only vote once for this award.`
+  // Filtered classmate list based on search input
+  const filteredClassmates = useMemo(() => {
+    const term = nomineeSearch.toLowerCase().trim();
+    if (!term) return allClassmates;
+    return allClassmates.filter(
+      (c) =>
+        c.full_name.toLowerCase().includes(term) ||
+        c.class_id.toLowerCase().includes(term)
     );
+  }, [allClassmates, nomineeSearch]);
 
-    if (!confirmed) return;
+  async function handleNominate(e) {
+    e.preventDefault();
+    if (!selectedNominee) { setError("Please select a classmate to nominate."); return; }
 
     setActionLoading(true);
-    setMessage("");
     setError("");
+    setMessage("");
 
     try {
-      const { data, error: voteError } =
-        await supabase.rpc(
-          "submit_award_vote",
-          {
-            p_voter_id: member.id,
-            p_category_id: selectedCategory.id,
-            p_nominee_id: selectedNominee,
-          }
-        );
+      const { data, error: rpcError } = await supabase.rpc("submit_nomination", {
+        p_nominator_id: member.id,
+        p_category_id:  activeCategory.id,
+        p_nominee_id:   selectedNominee,
+        p_reason:       reason.trim() || null,
+      });
 
-      if (voteError) {
-        throw voteError;
-      }
+      if (rpcError) throw rpcError;
+      if (!data?.success) throw new Error(data?.message || "Nomination could not be submitted.");
 
-      if (!data?.success) {
-        throw new Error(
-          data?.message || "Vote could not be submitted."
-        );
-      }
-
-      setMessage(
-        data.message ||
-          "Your vote has been recorded successfully."
-      );
-
-      setSelectedNominee("");
+      // Update local nominations map
+      setMyNominations((prev) => ({ ...prev, [activeCategory.id]: selectedNominee }));
+      setMessage(data.message);
+      setStep(STEP.BROWSE);
     } catch (err) {
-      console.error(err);
       setError(err.message);
     } finally {
       setActionLoading(false);
     }
   }
 
-  function logoutMember() {
+  // ─── STEP 4: VOTE ──────────────────────────────────────────
+
+  async function handleVote(nomineeId) {
+    if (myVotes[activeCategory.id]) {
+      setError("You have already voted for this award.");
+      return;
+    }
+
+    setActionLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc("submit_vote", {
+        p_voter_id:    member.id,
+        p_category_id: activeCategory.id,
+        p_nominee_id:  nomineeId,
+      });
+
+      if (rpcError) throw rpcError;
+      if (!data?.success) throw new Error(data?.message || "Vote could not be recorded.");
+
+      setMyVotes((prev) => ({ ...prev, [activeCategory.id]: true }));
+      setMessage(data.message);
+      setStep(STEP.BROWSE);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // ─── LOGOUT ────────────────────────────────────────────────
+
+  function logout() {
     setMember(null);
     setClassId("");
     setPhone("");
-    setSelectedCategory(null);
-    setSelectedNominee("");
-    setReason("");
+    setStep(STEP.VERIFY);
+    setActiveCategory(null);
+    setMyNominations({});
+    setMyVotes({});
     setMessage("");
     setError("");
   }
+
+  // ─── HELPERS ───────────────────────────────────────────────
+
+  function getSelectedNomineeName() {
+    const c = allClassmates.find((cm) => cm.id === selectedNominee);
+    return c ? `${c.full_name} (${c.class_id})` : "";
+  }
+
+  // ─── RENDER ────────────────────────────────────────────────
 
   return (
     <div className="awards-page">
 
+      {/* HERO */}
       <section className="awards-hero">
         <div className="awards-hero-content">
-
+          <Link to="/" className="awards-back-link">← Back to Home</Link>
           <span>3A12 • CLASS OF 2021</span>
-
-          <h1>
-            Reunion
-            <br />
-            <strong>Awards</strong>
-          </h1>
-
+          <h1>Reunion <strong>Awards</strong></h1>
           <p>
-            Celebrate the classmates who have inspired,
-            supported and represented our class over the
-            years.
+            Celebrate the classmates who have inspired, supported
+            and represented our class.
           </p>
-
         </div>
       </section>
 
       <main className="awards-container">
 
-        {!member ? (
+        {/* ── STEP: VERIFY ── */}
+        {step === STEP.VERIFY && (
           <section className="member-verification-card">
-
-            <span className="awards-eyebrow">
-              CLASSMATE ACCESS
-            </span>
-
-            <h2>
-              Verify Your Classmate Account
-            </h2>
-
+            <span className="awards-eyebrow">CLASSMATE ACCESS</span>
+            <h2>Verify Your Identity</h2>
             <p>
-              Enter the Classmate ID and phone number
-              you used during reunion registration.
+              Enter the Classmate ID and phone number you used
+              when registering for the reunion.
             </p>
 
-            <form
-              onSubmit={verifyMember}
-              className="awards-form"
-            >
+            {error && <div className="awards-error">{error}</div>}
 
+            <form onSubmit={handleVerify} className="awards-form">
               <label>
                 Classmate ID
-
                 <input
                   type="text"
                   value={classId}
-                  onChange={(event) =>
-                    setClassId(event.target.value)
-                  }
+                  onChange={(e) => setClassId(e.target.value)}
                   placeholder="e.g. 3A12-BF3F011A"
+                  autoCapitalize="characters"
                   required
                 />
               </label>
 
               <label>
                 Phone / WhatsApp Number
-
                 <input
                   type="tel"
                   value={phone}
-                  onChange={(event) =>
-                    setPhone(event.target.value)
-                  }
-                  placeholder="Enter your registered phone"
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g. 024 XXX XXXX"
                   required
                 />
               </label>
@@ -310,273 +332,282 @@ export default function Awards() {
                 type="submit"
                 disabled={loading}
               >
-                {loading
-                  ? "Verifying..."
-                  : "Continue to Awards"}
+                {loading ? "Verifying..." : "Continue to Awards →"}
               </button>
-
             </form>
-
           </section>
-        ) : (
+        )}
+
+        {/* ── STEP: BROWSE ── */}
+        {step === STEP.BROWSE && member && (
           <>
-            <section className="member-welcome">
-
+            {/* Member header */}
+            <div className="awards-member-bar">
               <div>
-                <span className="awards-eyebrow">
-                  WELCOME BACK
-                </span>
-
-                <h2>
-                  Hello, {member.full_name}
-                </h2>
-
-                <p>
-                  Classmate ID:{" "}
-                  <strong>{member.class_id}</strong>
-                </p>
+                <span className="awards-eyebrow">VERIFIED CLASSMATE</span>
+                <p className="awards-member-name">{member.full_name}</p>
+                <code className="awards-class-id">{member.class_id}</code>
               </div>
-
-              <button
-                className="awards-outline-button"
-                onClick={logoutMember}
-              >
-                Exit
+              <button className="awards-outline-button" onClick={logout}>
+                Sign Out
               </button>
+            </div>
 
-            </section>
+            {message && <div className="awards-success">{message}</div>}
+            {error   && <div className="awards-error">{error}</div>}
 
-            {message && (
-              <div className="awards-success">
-                {message}
+            <div className="awards-section-heading">
+              <span className="awards-eyebrow">2026 REUNION</span>
+              <h2>Award Categories</h2>
+              <p>
+                Select an award to nominate a classmate or cast your vote.
+                You can nominate one person per category.
+              </p>
+            </div>
+
+            {categories.length === 0 ? (
+              <div className="awards-empty">
+                <span>🏆</span>
+                <h3>Award categories coming soon</h3>
+                <p>The admin is setting up the awards. Check back shortly.</p>
               </div>
-            )}
-
-            {error && (
-              <div className="awards-error">
-                {error}
-              </div>
-            )}
-
-            <section className="awards-section">
-
-              <div className="awards-section-heading">
-                <span className="awards-eyebrow">
-                  2026 REUNION
-                </span>
-
-                <h2>
-                  Award Categories
-                </h2>
-
-                <p>
-                  Select an award to nominate a classmate
-                  or cast your vote.
-                </p>
-              </div>
-
+            ) : (
               <div className="public-award-grid">
+                {categories.map((cat) => {
+                  const hasNominated  = !!myNominations[cat.id];
+                  const hasVoted      = !!myVotes[cat.id];
+                  const icon          = getCategoryIcon(cat);
 
-                {categories.map((category) => (
-                  <button
-                    className={`public-award-card ${
-                      selectedCategory?.id === category.id
-                        ? "selected"
-                        : ""
-                    }`}
-                    key={category.id}
-                    onClick={() =>
-                      openCategory(category)
-                    }
-                  >
+                  return (
+                    <button
+                      key={cat.id}
+                      className="public-award-card"
+                      onClick={() => openCategory(cat)}
+                    >
+                      <span className="award-card-icon">{icon}</span>
+                      <h3>{cat.name}</h3>
+                      {cat.description && <p>{cat.description}</p>}
 
-                    <span className="award-card-icon">
-                      🏆
-                    </span>
-
-                    <h3>{category.name}</h3>
-
-                    {category.description && (
-                      <p>
-                        {category.description}
-                      </p>
-                    )}
-
-                    <div className="public-award-status">
-
-                      {category.nomination_open && (
-                        <span>
-                          Nominations Open
-                        </span>
-                      )}
-
-                      {category.voting_open && (
-                        <span>
-                          Voting Open
-                        </span>
-                      )}
-
-                      {!category.nomination_open &&
-                        !category.voting_open && (
-                          <span>
-                            Closed
+                      <div className="public-award-status">
+                        {cat.nomination_open && (
+                          <span className="status-open">
+                            {hasNominated ? "✓ Nominated" : "Nominations Open"}
                           </span>
                         )}
-
-                    </div>
-
-                  </button>
-                ))}
-
+                        {cat.voting_open && (
+                          <span className="status-open">
+                            {hasVoted ? "✓ Voted" : "Voting Open"}
+                          </span>
+                        )}
+                        {!cat.nomination_open && !cat.voting_open && (
+                          <span className="status-closed">Closed</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-
-            </section>
-
-            {selectedCategory && (
-              <section className="award-action-panel">
-
-                <span className="awards-eyebrow">
-                  SELECTED AWARD
-                </span>
-
-                <h2>
-                  {selectedCategory.name}
-                </h2>
-
-                {selectedCategory.description && (
-                  <p>
-                    {selectedCategory.description}
-                  </p>
-                )}
-
-                {selectedCategory.nomination_open && (
-                  <div className="award-action-box">
-
-                    <h3>
-                      Nominate a Classmate
-                    </h3>
-
-                    <label>
-                      Select Classmate
-
-                      <select
-                        value={selectedNominee}
-                        onChange={(event) =>
-                          setSelectedNominee(
-                            event.target.value
-                          )
-                        }
-                      >
-                        <option value="">
-                          Select nominee
-                        </option>
-
-                        {classmatesForSelection(
-                          nominees,
-                          member.id
-                        ).map((nominee) => (
-                          <option
-                            key={nominee.nominee_id}
-                            value={nominee.nominee_id}
-                          >
-                            {nominee.nominee_name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label>
-                      Why are you nominating this person?
-
-                      <textarea
-                        value={reason}
-                        onChange={(event) =>
-                          setReason(event.target.value)
-                        }
-                        rows="4"
-                        placeholder="Optional reason..."
-                      />
-                    </label>
-
-                    <button
-                      className="awards-primary-button"
-                      onClick={submitNomination}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading
-                        ? "Submitting..."
-                        : "Submit Nomination"}
-                    </button>
-
-                  </div>
-                )}
-
-                {selectedCategory.voting_open && (
-                  <div className="award-action-box">
-
-                    <h3>
-                      Cast Your Vote
-                    </h3>
-
-                    <p>
-                      You can vote only once for this
-                      award category.
-                    </p>
-
-                    <label>
-                      Select your choice
-
-                      <select
-                        value={selectedNominee}
-                        onChange={(event) =>
-                          setSelectedNominee(
-                            event.target.value
-                          )
-                        }
-                      >
-                        <option value="">
-                          Select nominee
-                        </option>
-
-                        {nominees.map((nominee) => (
-                          <option
-                            key={nominee.nominee_id}
-                            value={nominee.nominee_id}
-                          >
-                            {nominee.nominee_name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <button
-                      className="awards-vote-button"
-                      onClick={submitVote}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading
-                        ? "Recording Vote..."
-                        : "🏆 Cast My Vote"}
-                    </button>
-
-                  </div>
-                )}
-
-              </section>
             )}
           </>
         )}
 
+        {/* ── STEP: NOMINATE ── */}
+        {step === STEP.NOMINATE && activeCategory && (
+          <div className="awards-action-page">
+
+            <button
+              className="awards-back-btn"
+              onClick={() => { setStep(STEP.BROWSE); setError(""); setMessage(""); }}
+            >
+              ← Back to Categories
+            </button>
+
+            <span className="awards-eyebrow">NOMINATE</span>
+            <h2>{activeCategory.name}</h2>
+            {activeCategory.description && (
+              <p className="awards-action-desc">{activeCategory.description}</p>
+            )}
+
+            {myNominations[activeCategory.id] && (
+              <div className="awards-info-banner">
+                You have already submitted a nomination for this award.
+                Submitting again will replace your previous choice.
+              </div>
+            )}
+
+            {error   && <div className="awards-error">{error}</div>}
+            {message && <div className="awards-success">{message}</div>}
+
+            <form onSubmit={handleNominate} className="awards-nominate-form">
+
+              {/* Search */}
+              <div className="nominate-search-box">
+                <input
+                  type="text"
+                  placeholder="Search by name or class ID..."
+                  value={nomineeSearch}
+                  onChange={(e) => setNomineeSearch(e.target.value)}
+                  autoFocus
+                />
+                {nomineeSearch && (
+                  <button
+                    type="button"
+                    className="nominate-clear-btn"
+                    onClick={() => setNomineeSearch("")}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Classmate list */}
+              {loading ? (
+                <div className="awards-loading">Loading classmates...</div>
+              ) : (
+                <div className="nominate-list">
+                  {filteredClassmates.length === 0 ? (
+                    <div className="nominate-empty">
+                      No classmates match "{nomineeSearch}".
+                    </div>
+                  ) : (
+                    filteredClassmates.map((cm) => (
+                      <label
+                        key={cm.id}
+                        className={`nominate-row ${
+                          selectedNominee === cm.id ? "selected" : ""
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="nominee"
+                          value={cm.id}
+                          checked={selectedNominee === cm.id}
+                          onChange={() => setSelectedNominee(cm.id)}
+                        />
+                        <div className="nominate-row-info">
+                          <strong>{cm.full_name}</strong>
+                          <code>{cm.class_id}</code>
+                        </div>
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Selected summary */}
+              {selectedNominee && (
+                <div className="nominate-selected-summary">
+                  Nominating: <strong>{getSelectedNomineeName()}</strong>
+                </div>
+              )}
+
+              {/* Optional reason */}
+              <label className="nominate-reason-label">
+                Why are you nominating this person?
+                <span className="nominate-optional">(optional)</span>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows="3"
+                  placeholder="e.g. He has consistently supported classmates and organized several activities."
+                />
+              </label>
+
+              <div className="awards-action-footer">
+                <button
+                  type="button"
+                  className="awards-outline-button"
+                  onClick={() => { setStep(STEP.BROWSE); setError(""); }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="awards-primary-button"
+                  disabled={actionLoading || !selectedNominee}
+                >
+                  {actionLoading ? "Submitting..." : "Submit Nomination →"}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        )}
+
+        {/* ── STEP: VOTE ── */}
+        {step === STEP.VOTE && activeCategory && (
+          <div className="awards-action-page">
+
+            <button
+              className="awards-back-btn"
+              onClick={() => { setStep(STEP.BROWSE); setError(""); setMessage(""); }}
+            >
+              ← Back to Categories
+            </button>
+
+            <span className="awards-eyebrow">CAST YOUR VOTE</span>
+            <h2>{activeCategory.name}</h2>
+            {activeCategory.description && (
+              <p className="awards-action-desc">{activeCategory.description}</p>
+            )}
+
+            {myVotes[activeCategory.id] ? (
+              <div className="awards-success awards-voted-banner">
+                ✓ You have already voted for this award. Thank you!
+              </div>
+            ) : (
+              <p className="awards-vote-instruction">
+                Choose one finalist below. You can only vote once for this award.
+              </p>
+            )}
+
+            {error   && <div className="awards-error">{error}</div>}
+            {message && <div className="awards-success">{message}</div>}
+
+            {loading ? (
+              <div className="awards-loading">Loading finalists...</div>
+            ) : finalists.length === 0 ? (
+              <div className="awards-empty">
+                <span>🏆</span>
+                <h3>Finalists not yet announced</h3>
+                <p>The admin is reviewing nominations. Check back soon.</p>
+              </div>
+            ) : (
+              <div className="vote-list">
+                {finalists.map((f) => (
+                  <div key={f.classmate_id} className="vote-row">
+                    <div className="vote-row-info">
+                      <strong>{f.full_name}</strong>
+                      <code>{f.class_id}</code>
+                    </div>
+
+                    {myVotes[activeCategory.id] ? (
+                      <span className="vote-cast-label">Voted ✓</span>
+                    ) : (
+                      <button
+                        className="awards-vote-button"
+                        onClick={() => handleVote(f.classmate_id)}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading ? "..." : "🗳️ Vote"}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!myVotes[activeCategory.id] && finalists.length > 0 && (
+              <p className="awards-vote-note">
+                Your vote is anonymous and final. You cannot change it after submitting.
+              </p>
+            )}
+
+          </div>
+        )}
+
       </main>
     </div>
-  );
-}
-
-function classmatesForSelection(
-  nominees,
-  memberId
-) {
-  return nominees.filter(
-    (nominee) => nominee.nominee_id !== memberId
   );
 }
