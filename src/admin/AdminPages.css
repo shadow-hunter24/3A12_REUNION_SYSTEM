@@ -28,14 +28,39 @@
 /* Scoped to admin pages only to avoid clashing with App.css .secondary-button */
 .admin-layout .secondary-button,
 .admin-content .secondary-button {
-  padding: 13px 17px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
   border: 1px solid #ddd;
-  background: white;
+  background: #f2f4f7;
+  color: #344054;
   border-radius: 9px;
   font-weight: 700;
+  font-size: 13px;
+  font-family: inherit;
   cursor: pointer;
   min-height: 44px;
-  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.admin-layout .secondary-button:hover,
+.admin-content .secondary-button:hover {
+  background: #e8eaf0;
+  border-color: #bbb;
+}
+
+.admin-layout .secondary-button:focus-visible,
+.admin-content .secondary-button:focus-visible {
+  outline: 3px solid #b58a3a;
+  outline-offset: 3px;
+}
+
+.admin-layout .secondary-button:disabled,
+.admin-content .secondary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .summary-cards {
@@ -563,11 +588,18 @@
 .admin-primary-button,
 .admin-secondary-button,
 .admin-table-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   border: none;
   border-radius: 8px;
   padding: 10px 15px;
   font-weight: 700;
+  font-size: 13px;
+  font-family: inherit;
   cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
 }
 
 .admin-primary-button {

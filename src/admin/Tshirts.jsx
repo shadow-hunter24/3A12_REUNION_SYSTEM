@@ -147,7 +147,7 @@ export default function Tshirts() {
           <p>Manage reunion T-shirt sizes and quantities ordered by classmates.</p>
         </div>
         <button
-          className="admin-secondary-button"
+          className="secondary-button"
           onClick={loadData}
           aria-label="Refresh T-shirt records"
         >
