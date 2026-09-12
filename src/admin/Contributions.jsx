@@ -228,95 +228,86 @@ export default function Contributions() {
   }
 
   async function handleSubmit(event) {
-    event.preventDefault();
+  event.preventDefault();
 
-    setSaving(true);
-    setMessage("");
-    setError("");
+  setSaving(true);
+  setMessage("");
+  setError("");
 
-    try {
-      const selectedClassmate = classmates.find(
-        (classmate) => classmate.id === form.classmate_id
-      );
+  try {
+    const selectedClassmate = classmates.find(
+      (classmate) => classmate.id === form.classmate_id
+    );
 
-      if (!selectedClassmate) {
-        throw new Error("Please select a classmate.");
-      }
-
-      const expectedAmount = Number(
-        form.expected_amount || 0
-      );
-
-      const amountPaid = Number(form.amount_paid || 0);
-
-      if (expectedAmount < 0 || amountPaid < 0) {
-        throw new Error("Amounts cannot be negative.");
-      }
-
-      const paymentStatus = calculateStatus(
-        expectedAmount,
-        amountPaid
-      );
-
-      const {
-        data: {
-          user,
-        },
-      } = await supabase.auth.getUser();
-
-      const payload = {
-        classmate_id: form.classmate_id,
-        expected_amount: expectedAmount,
-        amount_paid: amountPaid,
-        payment_status: paymentStatus,
-        payment_method: form.payment_method,
-        transaction_reference:
-          form.transaction_reference.trim() || null,
-        payment_date: form.payment_date
-          ? new Date(
-              `${form.payment_date}T12:00:00`
-            ).toISOString()
-          : null,
-        recorded_by: user?.email || null,
-        notes: form.notes.trim() || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (editingContribution) {
-        const { error: updateError } = await supabase
-          .from("contributions")
-          .update(payload)
-          .eq("id", editingContribution.id);
-
-        if (updateError) throw updateError;
-
-        setMessage(
-          "Payment record updated successfully."
-        );
-      } else {
-        const { error: insertError } = await supabase
-          .from("contributions")
-          .insert(payload);
-
-        if (insertError) throw insertError;
-
-        setMessage(
-          "Payment recorded successfully."
-        );
-      }
-
-      setShowModal(false);
-      setForm(emptyForm);
-      setEditingContribution(null);
-
-      await loadData();
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "Unable to save payment record.");
-    } finally {
-      setSaving(false);
+    if (!selectedClassmate) {
+      throw new Error("Please select a classmate.");
     }
+
+    const expectedAmount = Number(form.expected_amount || 0);
+    const amountPaid = Number(form.amount_paid || 0);
+
+    if (expectedAmount < 0 || amountPaid < 0) {
+      throw new Error("Amounts cannot be negative.");
+    }
+
+    const paymentStatus = calculateStatus(
+      expectedAmount,
+      amountPaid
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const payload = {
+      classmate_id: form.classmate_id,
+      expected_amount: expectedAmount,
+      amount_paid: amountPaid,
+      payment_status: paymentStatus,
+      payment_method: form.payment_method,
+      transaction_reference:
+        form.transaction_reference.trim() || null,
+      payment_date: form.payment_date
+        ? new Date(
+            `${form.payment_date}T12:00:00`
+          ).toISOString()
+        : null,
+      recorded_by: user?.email || null,
+      notes: form.notes.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Create a new record OR update the existing one.
+    const { error: saveError } = await supabase
+      .from("contributions")
+      .upsert(payload, {
+        onConflict: "classmate_id",
+      });
+
+    if (saveError) {
+      throw saveError;
+    }
+
+    setMessage(
+      editingContribution
+        ? "Payment record updated successfully."
+        : "Payment recorded successfully."
+    );
+
+    setShowModal(false);
+    setForm(emptyForm);
+    setEditingContribution(null);
+
+    await loadData();
+  } catch (err) {
+    console.error(err);
+    setError(
+      err.message || "Unable to save payment record."
+    );
+  } finally {
+    setSaving(false);
   }
+}
 
   function getStatus(contribution) {
     return contribution?.payment_status || "UNPAID";
