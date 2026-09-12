@@ -1,0 +1,8 @@
+name = "3a12-reunion-system"
+compatibility_date = "2024-01-01"
+
+[assets]
+directory = "./dist"
+# Serve index.html for all routes that don't match a static file
+# This is what makes React Router work correctly on direct URL access
+not_found_handling = "single-page-application"
