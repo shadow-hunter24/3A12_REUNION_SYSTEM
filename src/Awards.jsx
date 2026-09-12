@@ -225,7 +225,18 @@ export default function AwardsPage() {
     setMessage("");
     setError("");
 
-    if (category.nomination_open) {
+    // Voting takes priority — if voting is open, always go to vote step
+    if (category.voting_open) {
+      setLoading(true);
+      const { data, error: rpcError } = await supabase.rpc(
+        "get_finalists_for_voting",
+        { p_category_id: category.id }
+      );
+      setLoading(false);
+      if (rpcError) { setError("Could not load finalists. Please try again."); return; }
+      setFinalists(data || []);
+      setStep(STEP.VOTE);
+    } else if (category.nomination_open) {
       setLoading(true);
       const { data, error: rpcError } = await supabase.rpc(
         "get_classmates_for_nomination",
@@ -238,16 +249,6 @@ export default function AwardsPage() {
       const prevNominee = myNominations[category.id];
       if (prevNominee) setSelectedNominee(prevNominee);
       setStep(STEP.NOMINATE);
-    } else if (category.voting_open) {
-      setLoading(true);
-      const { data, error: rpcError } = await supabase.rpc(
-        "get_finalists_for_voting",
-        { p_category_id: category.id }
-      );
-      setLoading(false);
-      if (rpcError) { setError("Could not load finalists. Please try again."); return; }
-      setFinalists(data || []);
-      setStep(STEP.VOTE);
     } else {
       setMessage("This award is not yet open for nominations or voting. Check back soon.");
     }
@@ -512,9 +513,10 @@ export default function AwardsPage() {
                   const hasVoted     = !!myVotes[cat.id];
                   const isOpen       = cat.nomination_open || cat.voting_open;
 
+                  // Voting takes priority over nominations in both label and display
                   let statusLabel = "Closed";
-                  if (cat.nomination_open) statusLabel = hasNominated ? "Nominated" : "Nominations Open";
                   if (cat.voting_open)     statusLabel = hasVoted     ? "Voted"     : "Voting Open";
+                  else if (cat.nomination_open) statusLabel = hasNominated ? "Nominated" : "Nominations Open";
 
                   return (
                     <div key={cat.id} role="listitem">
@@ -531,14 +533,14 @@ export default function AwardsPage() {
                         {cat.description && <p>{cat.description}</p>}
 
                         <div className="public-award-status" aria-hidden="true">
-                          {cat.nomination_open && (
-                            <span className="status-open">
-                              {hasNominated ? <><Check size={12} style={{ display: "inline", verticalAlign: "middle" }} /> Nominated</> : "Nominations Open"}
-                            </span>
-                          )}
                           {cat.voting_open && (
                             <span className="status-open">
                               {hasVoted ? <><Check size={12} style={{ display: "inline", verticalAlign: "middle" }} /> Voted</> : "Voting Open"}
+                            </span>
+                          )}
+                          {!cat.voting_open && cat.nomination_open && (
+                            <span className="status-open">
+                              {hasNominated ? <><Check size={12} style={{ display: "inline", verticalAlign: "middle" }} /> Nominated</> : "Nominations Open"}
                             </span>
                           )}
                           {!isOpen && <span className="status-closed">Closed</span>}
