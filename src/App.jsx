@@ -122,6 +122,10 @@ function App() {
               Register for Reunion →
             </Link>
 
+            <Link to="/awards" className="secondary-button">
+              🏆 Awards & Voting
+            </Link>
+
             <a href="#programme" className="secondary-button">
               View Programme
             </a>

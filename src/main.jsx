@@ -8,16 +8,19 @@ import {
 
 import "./index.css";
 
+// Public pages
 import App from "./App.jsx";
 import Register from "./Register.jsx";
-import AdminLogin from "./AdminLogin.jsx";
+import AwardsPage from "./Awards.jsx";
 
+// Admin
+import AdminLogin from "./AdminLogin.jsx";
 import AdminLayout from "./admin/AdminLayout.jsx";
 import Dashboard from "./admin/Dashboard.jsx";
 import Registrations from "./admin/Registrations.jsx";
 import Contributions from "./admin/Contributions.jsx";
 import Tshirts from "./admin/Tshirts.jsx";
-import Awards from "./admin/AdminAwards.jsx";
+import AdminAwards from "./admin/AdminAwards.jsx";
 import Memories from "./admin/Memories.jsx";
 import Checkin from "./admin/Checkin.jsx";
 
@@ -28,63 +31,24 @@ createRoot(document.getElementById("root")).render(
       <Routes>
 
         {/* PUBLIC WEBSITE */}
+        <Route path="/"         element={<App />} />
+        <Route path="/register" element={<Register />} />
 
-        <Route
-          path="/"
-          element={<App />}
-        />
-
-        <Route
-          path="/register"
-          element={<Register />}
-        />
+        {/* PUBLIC AWARDS — classmates verify + nominate + vote */}
+        <Route path="/awards"   element={<AwardsPage />} />
 
         {/* ADMIN LOGIN */}
-
-        <Route
-          path="/admin/login"
-          element={<AdminLogin />}
-        />
+        <Route path="/admin/login" element={<AdminLogin />} />
 
         {/* ADMIN SYSTEM */}
-
-        <Route
-          path="/admin"
-          element={<AdminLayout />}
-        >
-
+        <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
-
-          <Route
-            path="registrations"
-            element={<Registrations />}
-          />
-
-          <Route
-            path="contributions"
-            element={<Contributions />}
-          />
-
-          <Route
-            path="tshirts"
-            element={<Tshirts />}
-          />
-
-          <Route
-            path="awards"
-            element={<Awards />}
-          />
-
-          <Route
-            path="memories"
-            element={<Memories />}
-          />
-
-          <Route
-            path="checkin"
-            element={<Checkin />}
-          />
-
+          <Route path="registrations" element={<Registrations />} />
+          <Route path="contributions"  element={<Contributions />} />
+          <Route path="tshirts"        element={<Tshirts />} />
+          <Route path="awards"         element={<AdminAwards />} />
+          <Route path="memories"       element={<Memories />} />
+          <Route path="checkin"        element={<Checkin />} />
         </Route>
 
       </Routes>
