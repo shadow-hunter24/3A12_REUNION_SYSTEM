@@ -1,34 +1,54 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import "./AdminLayout.css";
 
+const menu = [
+  { name: "Dashboard",      path: "/admin",               icon: "▦" },
+  { name: "Registrations",  path: "/admin/registrations", icon: "👥" },
+  { name: "Contributions",  path: "/admin/contributions", icon: "💰" },
+  { name: "T-Shirts",       path: "/admin/tshirts",       icon: "👕" },
+  { name: "Awards",         path: "/admin/awards",        icon: "🏆" },
+  { name: "Memories",       path: "/admin/memories",      icon: "📸" },
+  { name: "Check-In",       path: "/admin/checkin",       icon: "🎟️" },
+];
 
 export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [user, setUser] = useState(null);
+  const [user, setUser]           = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => {
-    checkUser();
-  }, []);
+  // Logout confirmation state (replaces browser confirm dialog)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const logoutConfirmRef = useRef(null);
+
+  useEffect(() => { checkUser(); }, []);
 
   // Close mobile menu on navigation
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+
+  // Move focus into logout dialog when it opens
   useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
+    if (showLogoutConfirm) logoutConfirmRef.current?.focus();
+  }, [showLogoutConfirm]);
+
+  // Escape closes mobile sidebar and logout dialog
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key === "Escape") {
+        if (showLogoutConfirm) { setShowLogoutConfirm(false); return; }
+        if (mobileOpen) setMobileOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [showLogoutConfirm, mobileOpen]);
 
   async function checkUser() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      navigate("/admin/login");
-      return;
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { navigate("/admin/login"); return; }
 
     const { data: admin } = await supabase
       .from("admin_users")
@@ -41,160 +61,148 @@ export default function AdminLayout() {
       navigate("/admin/login");
       return;
     }
-
     setUser(user);
   }
 
-  async function logout() {
+  async function doLogout() {
     await supabase.auth.signOut();
     navigate("/admin/login");
   }
 
-  const menu = [
-    {
-      name: "Dashboard",
-      path: "/admin",
-      icon: "▦",
-    },
-    {
-      name: "Registrations",
-      path: "/admin/registrations",
-      icon: "👥",
-    },
-    {
-      name: "Contributions",
-      path: "/admin/contributions",
-      icon: "💰",
-    },
-    {
-      name: "T-Shirts",
-      path: "/admin/tshirts",
-      icon: "👕",
-    },
-    {
-      name: "Awards",
-      path: "/admin/awards",
-      icon: "🏆",
-    },
-    {
-      name: "Memories",
-      path: "/admin/memories",
-      icon: "📸",
-    },
-    {
-      name: "Check-In",
-      path: "/admin/checkin",
-      icon: "🎟️",
-    },
-  ];
+  // Active check helper
+  function isActive(path) {
+    return path === "/admin"
+      ? location.pathname === "/admin"
+      : location.pathname.startsWith(path);
+  }
 
   return (
     <div className="admin-layout">
 
-      {/* MOBILE TOP BAR */}
-      <div className="admin-topbar">
-        <div className="admin-brand-mobile">
-          3A12
-        </div>
-
+      {/* ── MOBILE TOP BAR ── */}
+      <div className="admin-topbar" role="banner">
+        <div className="admin-brand-mobile" aria-hidden="true">3A12</div>
         <button
           className="mobile-menu-button"
           onClick={() => setMobileOpen((prev) => !prev)}
-          aria-label="Toggle menu"
+          aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={mobileOpen}
+          aria-controls="admin-sidebar"
         >
-          {mobileOpen ? "✕" : "☰"}
+          <span aria-hidden="true">{mobileOpen ? "✕" : "☰"}</span>
         </button>
       </div>
 
-      {/* SIDEBAR OVERLAY (mobile) */}
+      {/* ── SIDEBAR OVERLAY (mobile) ── */}
       {mobileOpen && (
         <div
           className="sidebar-overlay"
           onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
 
+      {/* ── SIDEBAR ── */}
       <aside
+        id="admin-sidebar"
         className={`admin-sidebar ${mobileOpen ? "sidebar-open" : ""}`}
+        aria-label="Admin navigation"
+        aria-hidden={!mobileOpen && window.innerWidth <= 800 ? true : undefined}
       >
-
-        <div className="admin-brand">
-          <div className="admin-logo">
-            3A12
-          </div>
-
+        <div className="admin-brand" aria-label="3A12 Reunion Admin Panel">
+          <div className="admin-logo" aria-hidden="true">3A12</div>
           <div>
             <strong>Reunion</strong>
             <span>Admin Panel</span>
           </div>
         </div>
 
-        <nav className="admin-navigation">
+        <nav className="admin-navigation" aria-label="Admin menu">
+          <p className="navigation-label" aria-hidden="true">MANAGEMENT</p>
 
-          <p className="navigation-label">
-            MANAGEMENT
-          </p>
+          {menu.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`admin-menu-item ${isActive(item.path) ? "active" : ""}`}
+              aria-current={isActive(item.path) ? "page" : undefined}
+            >
+              <span aria-hidden="true">{item.icon}</span>
+              {item.name}
+            </Link>
+          ))}
 
-          {menu.map((item) => {
+          <p className="navigation-label" aria-hidden="true">SYSTEM</p>
 
-            const active =
-              item.path === "/admin"
-                ? location.pathname === "/admin"
-                : location.pathname.startsWith(item.path);
-
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`admin-menu-item ${
-                  active ? "active" : ""
-                }`}
-              >
-                <span>{item.icon}</span>
-                {item.name}
-              </Link>
-            );
-          })}
-
-          <p className="navigation-label">
-            SYSTEM
-          </p>
-
-          <Link
-            to="/"
-            className="admin-menu-item"
-          >
-            <span>↩</span>
+          <Link to="/" className="admin-menu-item">
+            <span aria-hidden="true">↩</span>
             View Website
           </Link>
-
         </nav>
 
         <div className="admin-account">
-
-          <div className="admin-avatar">
-            {user?.email?.charAt(0).toUpperCase()}
+          <div
+            className="admin-avatar"
+            aria-label={`Signed in as ${user?.email || "Administrator"}`}
+            aria-hidden="true"
+          >
+            {user?.email?.charAt(0).toUpperCase() ?? "A"}
           </div>
 
           <div className="admin-account-info">
             <strong>Administrator</strong>
-            <span>{user?.email}</span>
+            <span title={user?.email}>{user?.email}</span>
           </div>
 
           <button
-            onClick={logout}
-            title="Logout"
+            onClick={() => setShowLogoutConfirm(true)}
+            className="admin-logout-btn"
+            aria-label="Sign out of admin panel"
+            title="Sign out"
           >
-            ↪
+            <span aria-hidden="true">↪</span>
           </button>
-
         </div>
-
       </aside>
 
-      <main className="admin-content">
+      {/* ── MAIN CONTENT ── */}
+      <main className="admin-content" id="admin-main-content">
         <Outlet />
       </main>
+
+      {/* ── LOGOUT CONFIRMATION DIALOG ── */}
+      {showLogoutConfirm && (
+        <div
+          className="logout-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-dialog-heading"
+          onClick={(e) => {
+            // Close when clicking outside the card
+            if (e.target === e.currentTarget) setShowLogoutConfirm(false);
+          }}
+        >
+          <div className="logout-card">
+            <h2 id="logout-dialog-heading">Sign Out?</h2>
+            <p>You will be returned to the login page. Any unsaved changes may be lost.</p>
+            <div className="logout-actions">
+              <button
+                className="admin-secondary-button"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                ref={logoutConfirmRef}
+                className="admin-primary-button logout-confirm-btn"
+                onClick={doLogout}
+              >
+                Yes, Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

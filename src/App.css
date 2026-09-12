@@ -1,5 +1,25 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap");
 
+/* ── Skip Navigation ─────────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  top: -60px;
+  left: 16px;
+  z-index: 9999;
+  padding: 10px 18px;
+  background: #c6a15b;
+  color: #111;
+  font-weight: 800;
+  font-size: 14px;
+  border-radius: 0 0 8px 8px;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
 :root {
   font-family: "DM Sans", sans-serif;
   color: #111827;
@@ -146,7 +166,8 @@ button {
   transition: 0.3s;
 }
 
-.nav-links a:hover {
+.nav-links a:hover,
+.nav-links a:focus-visible {
   opacity: 0.6;
 }
 
@@ -238,6 +259,15 @@ button {
   border-radius: 5px;
   font-weight: 700;
   display: inline-block;
+  min-height: 44px;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.primary-button:focus-visible,
+.secondary-button:focus-visible,
+.nav-button:focus-visible {
+  outline: 3px solid #c6a15b;
+  outline-offset: 3px;
 }
 
 .primary-button {
@@ -398,6 +428,8 @@ button {
 .timeline {
   max-width: 800px;
   margin-top: 50px;
+  list-style: none;
+  padding: 0;
 }
 
 .timeline-item {
@@ -649,4 +681,31 @@ footer > p {
   .timeline-item > span {
     font-size: 12px;
   }
+}
+
+/* ── Reduced Motion ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .feature-card,
+  .primary-button,
+  .secondary-button,
+  .mobile-nav {
+    transition: none;
+  }
+}
+
+/* ── Feature card hover ─────────────────────────────────── */
+.feature-card:focus-within {
+  transform: translateY(-8px);
+}
+
+/* ── Mobile nav focus ───────────────────────────────────── */
+.mobile-nav a:focus-visible {
+  color: #c6a15b;
+  outline: 2px solid #c6a15b;
+  outline-offset: 2px;
+  border-radius: 4px;
 }

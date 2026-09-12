@@ -5,16 +5,15 @@
   color: #191919;
 }
 
+/* ── Sidebar ──────────────────────────────────────────────── */
 .admin-sidebar {
   width: 250px;
   min-height: 100vh;
   height: 100vh;
   position: sticky;
   top: 0;
-
   display: flex;
   flex-direction: column;
-
   background: #171717;
   color: white;
 }
@@ -24,22 +23,17 @@
   display: flex;
   align-items: center;
   gap: 12px;
-
   border-bottom: 1px solid #303030;
 }
 
 .admin-logo {
   width: 48px;
   height: 48px;
-
   display: grid;
   place-items: center;
-
   border-radius: 12px;
-
   background: #b58a3a;
   color: #171717;
-
   font-size: 12px;
   font-weight: 900;
 }
@@ -59,6 +53,7 @@
   margin-top: 3px;
 }
 
+/* ── Navigation ───────────────────────────────────────────── */
 .admin-navigation {
   padding: 20px 14px;
   flex: 1;
@@ -70,7 +65,6 @@
   font-size: 9px;
   font-weight: 900;
   letter-spacing: 0.16em;
-
   padding: 15px 10px 8px;
 }
 
@@ -78,23 +72,18 @@
   display: flex;
   align-items: center;
   gap: 12px;
-
   width: 100%;
   box-sizing: border-box;
-
-  /* 44px minimum tap target */
-  padding: 14px 11px;
+  padding: 12px 11px;
   margin-bottom: 4px;
-
   border-radius: 8px;
-
   color: #aaa;
   text-decoration: none;
-
   font-size: 13px;
   font-weight: 600;
-
-  transition: 0.2s;
+  min-height: 44px;
+  transition: background 0.15s, color 0.15s;
+  border-left: 3px solid transparent;
 }
 
 .admin-menu-item:hover {
@@ -105,14 +94,21 @@
 .admin-menu-item.active {
   color: white;
   background: #292929;
-  border-left: 3px solid #b58a3a;
+  border-left-color: #b58a3a;
 }
 
+/* Keyboard focus — high-contrast ring inside dark sidebar */
+.admin-menu-item:focus-visible {
+  outline: 2px solid #b58a3a;
+  outline-offset: 2px;
+  color: white;
+  background: #292929;
+}
+
+/* ── Account bar ──────────────────────────────────────────── */
 .admin-account {
   padding: 17px 14px;
-
   border-top: 1px solid #303030;
-
   display: flex;
   align-items: center;
   gap: 9px;
@@ -121,16 +117,13 @@
 .admin-avatar {
   width: 37px;
   height: 37px;
-
   display: grid;
   place-items: center;
-
   border-radius: 50%;
-
   background: #b58a3a;
   color: #171717;
-
   font-weight: 900;
+  flex-shrink: 0;
 }
 
 .admin-account-info {
@@ -141,7 +134,6 @@
 .admin-account-info strong,
 .admin-account-info span {
   display: block;
-
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -149,6 +141,7 @@
 
 .admin-account-info strong {
   font-size: 11px;
+  color: white;
 }
 
 .admin-account-info span {
@@ -157,38 +150,107 @@
   margin-top: 3px;
 }
 
-.admin-account button {
+.admin-logout-btn {
   border: none;
   background: none;
   color: #888;
-
   font-size: 20px;
   cursor: pointer;
-  /* Minimum tap target */
   min-width: 44px;
   min-height: 44px;
   display: grid;
   place-items: center;
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
 }
 
+.admin-logout-btn:hover {
+  color: white;
+  background: #292929;
+}
+
+.admin-logout-btn:focus-visible {
+  outline: 2px solid #b58a3a;
+  outline-offset: 2px;
+}
+
+/* ── Main content ─────────────────────────────────────────── */
 .admin-content {
   flex: 1;
   min-width: 0;
   padding: 40px;
 }
 
-/* MOBILE TOP BAR */
-
+/* ── Mobile top bar ───────────────────────────────────────── */
 .admin-topbar {
   display: none;
 }
 
+/* ── Logout confirmation dialog ───────────────────────────── */
+.logout-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.logout-card {
+  width: min(420px, 100%);
+  background: white;
+  border-radius: 18px;
+  padding: 32px 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.logout-card h2 {
+  margin: 0 0 10px;
+  font-family: "Playfair Display", serif;
+  font-size: 26px;
+  color: #171717;
+}
+
+.logout-card p {
+  color: #666;
+  line-height: 1.6;
+  margin: 0 0 24px;
+  font-size: 14px;
+}
+
+.logout-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.logout-confirm-btn {
+  background: #b42318 !important;
+}
+
+.logout-confirm-btn:hover {
+  background: #8c1a12 !important;
+}
+
+.logout-actions .admin-secondary-button,
+.logout-actions .admin-primary-button {
+  min-height: 44px;
+  font-family: inherit;
+}
+
+.logout-actions .admin-secondary-button:focus-visible,
+.logout-actions .admin-primary-button:focus-visible {
+  outline: 3px solid #b58a3a;
+  outline-offset: 3px;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 800px) {
   .admin-layout {
     flex-direction: column;
   }
 
-  /* Sticky top bar */
   .admin-topbar {
     display: flex;
     align-items: center;
@@ -215,14 +277,18 @@
     color: white;
     font-size: 22px;
     cursor: pointer;
-    /* 44×44 tap target */
     min-width: 44px;
     min-height: 44px;
     display: grid;
     place-items: center;
+    border-radius: 6px;
   }
 
-  /* Sidebar slides in from left */
+  .mobile-menu-button:focus-visible {
+    outline: 2px solid #b58a3a;
+    outline-offset: 2px;
+  }
+
   .admin-sidebar {
     position: fixed;
     top: 0;
@@ -237,7 +303,6 @@
     transform: translateX(0);
   }
 
-  /* Dark overlay behind open sidebar */
   .sidebar-overlay {
     position: fixed;
     inset: 0;
@@ -247,5 +312,23 @@
 
   .admin-content {
     padding: 25px 15px;
+  }
+
+  .logout-actions {
+    flex-direction: column-reverse;
+  }
+
+  .logout-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .admin-sidebar,
+  .admin-menu-item,
+  .admin-logout-btn {
+    transition: none;
   }
 }

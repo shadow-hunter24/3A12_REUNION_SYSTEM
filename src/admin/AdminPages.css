@@ -1858,3 +1858,366 @@
     flex-wrap: wrap;
   }
 }
+
+/* ══════════════════════════════════════════════════════════
+   HCI / ACCESSIBILITY ADDITIONS  (appended)
+   ══════════════════════════════════════════════════════════ */
+
+/* Screen-reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Search wrapper keeps label + input together */
+.search-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* focus-visible on search input */
+.search-input:focus-visible {
+  outline: 3px solid #b58a3a;
+  outline-offset: 2px;
+}
+
+/* Table rows that act as buttons */
+.admin-table tbody tr[role="button"]:focus-visible {
+  outline: 3px solid #b58a3a;
+  outline-offset: -3px;
+  background: #fdf9f1;
+}
+
+/* ── Details modal — dl/dt/dd ─────────────────────────────── */
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+}
+
+.details-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.details-grid dt {
+  color: #999;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.details-grid dd {
+  font-size: 13px;
+  font-weight: 700;
+  color: #171717;
+  margin: 0;
+  word-break: break-word;
+}
+
+/* Close modal button focus */
+.close-modal:focus-visible {
+  outline: 3px solid #b58a3a;
+  outline-offset: 3px;
+}
+
+/* ── Inline page spinner ──────────────────────────────────── */
+.admin-page-spinner {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #b58a3a;
+  border-radius: 50%;
+  animation: admin-page-spin 0.8s linear infinite;
+}
+
+@keyframes admin-page-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── focus-visible on all admin buttons ───────────────────── */
+.admin-primary-button:focus-visible,
+.admin-secondary-button:focus-visible,
+.admin-table-action:focus-visible,
+.secondary-button:focus-visible {
+  outline: 3px solid #b58a3a;
+  outline-offset: 3px;
+}
+
+/* ── Improved admin form inputs ───────────────────────────── */
+.admin-form input:focus,
+.admin-form select:focus,
+.admin-form textarea:focus {
+  border-color: #b58a3a;
+  box-shadow: 0 0 0 3px rgba(181, 138, 58, 0.12);
+  background: white;
+  outline: none;
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-spinner {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
+/* ── Contributions field error ────────────────────────────── */
+.contrib-field-error {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d93025;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Inline delete confirmation buttons */
+.contrib-delete-yes {
+  border: 1px solid #b42318;
+  background: #fef3f2;
+  color: #b42318;
+  border-radius: 5px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 30px;
+}
+
+.contrib-delete-yes:hover { background: #fecdca; }
+.contrib-delete-yes:focus-visible { outline: 2px solid #b42318; outline-offset: 2px; }
+
+.contrib-delete-no {
+  border: 1px solid #ccc;
+  background: white;
+  color: #555;
+  border-radius: 5px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 30px;
+}
+
+.contrib-delete-no:hover { background: #f5f5f5; }
+.contrib-delete-no:focus-visible { outline: 2px solid #b58a3a; outline-offset: 2px; }
+
+/* ── T-shirt per-row feedback ─────────────────────────────── */
+.tshirt-row-feedback {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tshirt-row-feedback--success {
+  color: #027a48;
+}
+
+.tshirt-row-feedback--error {
+  color: #b42318;
+}
+
+/* ── Memories / Checkin shared notice ────────────────────── */
+.memories-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  background: #fffaeb;
+  border: 1px solid #f0d080;
+  border-left: 4px solid #c9940a;
+  border-radius: 10px;
+  color: #7a5e00;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Coming-soon buttons */
+.memories-coming-soon-btn,
+.checkin-coming-soon-btn {
+  border: 1px solid #ddd;
+  background: #f7f5f0;
+  border-radius: 7px;
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+/* ── Checkin info grid ────────────────────────────────────── */
+.checkin-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 28px 0 32px;
+  text-align: left;
+}
+
+.checkin-info-grid > div {
+  background: #f8f6f1;
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.checkin-info-grid dt {
+  font-size: 11px;
+  font-weight: 800;
+  color: #b58a3a;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.checkin-info-grid dd {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .checkin-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   REGISTRATIONS — edit modal & action buttons
+   ══════════════════════════════════════════════════════════ */
+
+/* Action button group in table rows */
+.reg-action-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Edit / Delete tints */
+.reg-edit-btn {
+  background: #f0f4ff !important;
+  color: #3b5bdb !important;
+}
+
+.reg-delete-btn {
+  background: #fef3f2 !important;
+  color: #b42318 !important;
+}
+
+.reg-edit-btn:hover  { background: #dce4ff !important; }
+.reg-delete-btn:hover { background: #fecdca !important; }
+
+/* Edit modal — wider than view modal */
+.reg-edit-modal {
+  max-width: 720px !important;
+}
+
+/* Section headings inside edit form */
+.reg-edit-section-heading {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #b58a3a;
+  text-transform: uppercase;
+  padding: 16px 0 8px;
+  border-top: 1px solid #f0ece4;
+  margin-top: 4px;
+}
+
+.reg-edit-form .admin-form-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Action row at bottom of edit form */
+.reg-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+@media (max-width: 600px) {
+  .reg-edit-form .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reg-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .reg-modal-actions button {
+    width: 100%;
+  }
+
+  .reg-action-group {
+    flex-direction: column;
+  }
+}
+
+/* ── Contributions danger zone ────────────────────────────── */
+.contrib-danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 20px 0 16px;
+  padding: 16px 18px;
+  background: #fff5f5;
+  border: 1px solid #f5c6c6;
+  border-left: 4px solid #d93025;
+  border-radius: 10px;
+}
+
+.contrib-danger-zone > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.contrib-danger-zone strong {
+  display: block;
+  font-size: 13px;
+  color: #5c0a0a;
+  margin-bottom: 3px;
+}
+
+.contrib-danger-zone p {
+  margin: 0;
+  font-size: 12px;
+  color: #7a1414;
+  line-height: 1.5;
+}
+
+@media (max-width: 500px) {
+  .contrib-danger-zone {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .contrib-danger-zone .admin-danger-button {
+    width: 100%;
+  }
+}

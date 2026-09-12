@@ -4,7 +4,6 @@
   place-items: center;
   padding: 25px;
   box-sizing: border-box;
-
   background:
     radial-gradient(
       circle at top right,
@@ -22,23 +21,32 @@
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.1);
 }
 
+/* ── Logo ─────────────────────────────────────────────────── */
 .login-logo {
   width: 65px;
   height: 65px;
   margin: 0 auto 25px;
   display: grid;
   place-items: center;
-
   background: #171717;
   color: #b58a3a;
-
   border-radius: 16px;
-
   text-decoration: none;
   font-size: 17px;
   font-weight: 900;
+  transition: opacity 0.2s;
 }
 
+.login-logo:hover {
+  opacity: 0.85;
+}
+
+.login-logo:focus-visible {
+  outline: 3px solid #b58a3a;
+  outline-offset: 3px;
+}
+
+/* ── Headings ─────────────────────────────────────────────── */
 .login-eyebrow {
   text-align: center;
   color: #b58a3a;
@@ -63,6 +71,44 @@
   margin: 12px 0 30px;
 }
 
+/* ── Error banner ─────────────────────────────────────────── */
+.login-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 16px;
+  margin-bottom: 20px;
+  background: #fff5f5;
+  border: 1.5px solid #f5c6c6;
+  border-left: 4px solid #d93025;
+  border-radius: 10px;
+  color: #5c0a0a;
+  font-size: 13px;
+  line-height: 1.5;
+  /* receives programmatic focus */
+  outline: none;
+}
+
+.login-error-icon {
+  font-size: 15px;
+  color: #d93025;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Hint banner ──────────────────────────────────────────── */
+.login-hint {
+  padding: 12px 15px;
+  margin-bottom: 18px;
+  background: #fffaeb;
+  border: 1px solid #f0d080;
+  border-radius: 9px;
+  color: #7a5e00;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ── Form fields ──────────────────────────────────────────── */
 .login-field {
   margin-bottom: 20px;
 }
@@ -72,85 +118,128 @@
   font-size: 13px;
   font-weight: 700;
   margin-bottom: 8px;
+  color: #333;
+}
+
+/* Password wrapper */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .login-field input {
   width: 100%;
   box-sizing: border-box;
-
   padding: 14px;
-
-  border: 1px solid #ddd;
+  border: 1.5px solid #ddd;
   border-radius: 9px;
-
   background: #fafafa;
-
   font-family: inherit;
   font-size: 14px;
-
   outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  color: #171717;
 }
 
 .login-field input:focus {
   border-color: #b58a3a;
   background: white;
-  box-shadow: 0 0 0 3px rgba(181, 138, 58, 0.1);
+  box-shadow: 0 0 0 3px rgba(181, 138, 58, 0.12);
 }
 
+/* Wider right padding when show/hide button is present */
+.password-wrapper input {
+  padding-right: 72px;
+}
+
+/* Show / Hide button */
+.show-pwd-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #b58a3a;
+  font-size: 12px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 5px;
+  transition: background 0.15s;
+  /* 44px tap target height via line-height */
+  min-height: 36px;
+}
+
+.show-pwd-btn:hover {
+  background: rgba(181, 138, 58, 0.08);
+}
+
+.show-pwd-btn:focus-visible {
+  outline: 2px solid #b58a3a;
+  outline-offset: 2px;
+}
+
+/* ── Submit button ────────────────────────────────────────── */
 .login-button {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   border: none;
   border-radius: 10px;
-
   padding: 15px;
-  min-height: 44px;
-
+  min-height: 48px;
   background: #171717;
   color: white;
-
   font-family: inherit;
   font-size: 14px;
   font-weight: 800;
-
   cursor: pointer;
-  transition: 0.2s;
+  transition: background 0.2s, transform 0.2s;
 }
 
-.login-button:hover {
+.login-button:hover:not(:disabled) {
   background: #b58a3a;
   color: #171717;
 }
 
+.login-button:focus-visible {
+  outline: 3px solid #b58a3a;
+  outline-offset: 3px;
+}
+
 .login-button:disabled {
-  opacity: 0.6;
+  opacity: 0.65;
   cursor: not-allowed;
+  transform: none;
 }
 
-.login-error {
-  padding: 13px;
-  margin-bottom: 20px;
-
-  background: #fff0f0;
-  border: 1px solid #f1cccc;
-
-  color: #b42318;
-
-  border-radius: 8px;
-
-  font-size: 13px;
-  line-height: 1.5;
+/* Loading spinner inside button */
+.login-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: login-spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
+@keyframes login-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Footer links ─────────────────────────────────────────── */
 .login-footer {
   margin-top: 25px;
   padding-top: 20px;
-
   border-top: 1px solid #eee;
-
   display: flex;
   flex-direction: column;
   gap: 10px;
-
   text-align: center;
 }
 
@@ -159,6 +248,17 @@
   text-decoration: none;
   font-size: 13px;
   font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.login-footer a:hover {
+  text-decoration: underline;
+}
+
+.login-footer a:focus-visible {
+  outline: 2px solid #b58a3a;
+  outline-offset: 3px;
 }
 
 .login-footer span {
@@ -166,8 +266,21 @@
   font-size: 11px;
 }
 
+/* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 500px) {
   .admin-login-card {
     padding: 32px 22px;
+  }
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .login-spinner {
+    animation: none;
+    opacity: 0.5;
+  }
+
+  .login-button {
+    transition: none;
   }
 }

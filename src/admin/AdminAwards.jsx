@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import "./AdminPages.css";
 
-// ── Default icons for common award names ─────────────────────
+// ── Default icons ─────────────────────────────────────────────
 const CATEGORY_ICONS = {
   "Most Outstanding": "🏆",
   "Most Successful":  "💼",
@@ -24,12 +24,12 @@ function getCategoryIcon(category) {
 }
 
 const DEFAULT_CATEGORIES = [
-  { name: "Most Outstanding Classmate",  icon: "🏆", description: "The classmate who stands out in every way." },
-  { name: "Most Successful Entrepreneur",icon: "💼", description: "The classmate who has built something remarkable." },
-  { name: "Most Supportive Classmate",   icon: "❤️", description: "Always there for others, no matter what." },
-  { name: "Most Humorous Classmate",     icon: "😂", description: "The one who keeps everyone laughing." },
-  { name: "Best Dressed",                icon: "👔", description: "The classmate with unmatched style." },
-  { name: "Most Influential Classmate",  icon: "🌟", description: "Making a difference in the lives of others." },
+  { name: "Most Outstanding Classmate",   icon: "🏆", description: "The classmate who stands out in every way." },
+  { name: "Most Successful Entrepreneur", icon: "💼", description: "The classmate who has built something remarkable." },
+  { name: "Most Supportive Classmate",    icon: "❤️", description: "Always there for others, no matter what." },
+  { name: "Most Humorous Classmate",      icon: "😂", description: "The one who keeps everyone laughing." },
+  { name: "Best Dressed",                 icon: "👔", description: "The classmate with unmatched style." },
+  { name: "Most Influential Classmate",   icon: "🌟", description: "Making a difference in the lives of others." },
 ];
 
 const emptyCategory = {
@@ -40,38 +40,95 @@ const emptyCategory = {
   voting_open: false,
 };
 
-// ── VIEWS ─────────────────────────────────────────────────────
-const VIEW = {
-  LIST:      "list",
-  DETAIL:    "detail",  // nomination review + finalist management
-};
+const VIEW = { LIST: "list", DETAIL: "detail" };
+
+// ── Inline confirmation dialog (replaces window.confirm) ──────
+function ConfirmDialog({ heading, body, confirmLabel, onConfirm, onCancel, dangerous = false }) {
+  const confirmRef = useRef(null);
+  useEffect(() => { confirmRef.current?.focus(); }, []);
+
+  // Escape cancels
+  useEffect(() => {
+    function onKey(e) { if (e.key === "Escape") onCancel(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div
+      className="modal-background"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-dialog-heading"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div className="details-modal" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+        <h2
+          id="confirm-dialog-heading"
+          tabIndex={-1}
+          style={{ outline: "none", marginBottom: 10 }}
+        >
+          {heading}
+        </h2>
+        <p style={{ color: "#555", lineHeight: 1.7, marginBottom: 24, fontSize: 14 }}>{body}</p>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          <button className="admin-secondary-button" onClick={onCancel}>Cancel</button>
+          <button
+            ref={confirmRef}
+            className={dangerous ? "admin-danger-button" : "admin-primary-button"}
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminAwards() {
-  const [categories, setCategories]     = useState([]);
-  const [classmates, setClassmates]     = useState([]);
-  const [nominations, setNominations]   = useState([]);
-  const [finalists, setFinalists]       = useState([]);
-  const [votes, setVotes]               = useState([]);
+  const [categories, setCategories]   = useState([]);
+  const [classmates, setClassmates]   = useState([]);
+  const [nominations, setNominations] = useState([]);
+  const [finalists, setFinalists]     = useState([]);
+  const [votes, setVotes]             = useState([]);
 
-  const [loading, setLoading]           = useState(true);
-  const [saving, setSaving]             = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState(false);
 
-  const [view, setView]                 = useState(VIEW.LIST);
+  const [view, setView]                     = useState(VIEW.LIST);
   const [activeCategory, setActiveCategory] = useState(null);
 
-  const [showModal, setShowModal]       = useState(false);
+  const [showModal, setShowModal]           = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
-  const [form, setForm]                 = useState(emptyCategory);
+  const [form, setForm]                     = useState(emptyCategory);
+  const [formErrors, setFormErrors]         = useState({});
 
-  const [message, setMessage]           = useState("");
-  const [error, setError]               = useState("");
+  // Inline confirm dialogs (replaces window.confirm)
+  const [confirmDialog, setConfirmDialog]   = useState(null);
+  // { heading, body, confirmLabel, dangerous, onConfirm }
 
-  // ─── DATA LOADING ───────────────────────────────────────────
+  const [message, setMessage] = useState("");
+  const [error, setError]     = useState("");
 
+  // Focus management for category modal
+  const modalHeadingRef = useRef(null);
+  useEffect(() => {
+    if (showModal) modalHeadingRef.current?.focus();
+  }, [showModal]);
+
+  // Escape closes category modal
+  useEffect(() => {
+    if (!showModal) return;
+    function onKey(e) { if (e.key === "Escape") setShowModal(false); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showModal]);
+
+  // ─── DATA ─────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     setLoading(true);
     setError("");
-
     try {
       const [
         { data: catData,  error: e1 },
@@ -87,11 +144,8 @@ export default function AdminAwards() {
         supabase.from("award_votes").select("*"),
       ]);
 
-      if (e1) throw e1;
-      if (e2) throw e2;
-      if (e3) throw e3;
-      if (e4) throw e4;
-      if (e5) throw e5;
+      if (e1) throw e1; if (e2) throw e2; if (e3) throw e3;
+      if (e4) throw e4; if (e5) throw e5;
 
       setCategories(catData  || []);
       setClassmates(cmData   || []);
@@ -100,7 +154,7 @@ export default function AdminAwards() {
       setVotes(voteData      || []);
     } catch (err) {
       console.error(err);
-      setError(err.message || "Unable to load awards data.");
+      setError(err.message || "Unable to load awards data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -108,26 +162,22 @@ export default function AdminAwards() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ─── DERIVED DATA ───────────────────────────────────────────
-
+  // ─── DERIVED DATA ─────────────────────────────────────────
   const classmateMap = useMemo(() => {
     const map = {};
     classmates.forEach((c) => { map[c.id] = c; });
     return map;
   }, [classmates]);
 
-  // Nomination counts per category, sorted by count desc
   const nominationsByCategory = useMemo(() => {
     const map = {};
     nominations.forEach((n) => {
       if (!map[n.category_id]) map[n.category_id] = {};
-      map[n.category_id][n.nominee_id] =
-        (map[n.category_id][n.nominee_id] || 0) + 1;
+      map[n.category_id][n.nominee_id] = (map[n.category_id][n.nominee_id] || 0) + 1;
     });
     return map;
   }, [nominations]);
 
-  // Finalist ids per category
   const finalistsByCategoryMap = useMemo(() => {
     const map = {};
     finalists.forEach((f) => {
@@ -137,7 +187,6 @@ export default function AdminAwards() {
     return map;
   }, [finalists]);
 
-  // Vote counts per category+nominee
   const voteMap = useMemo(() => {
     const map = {};
     votes.forEach((v) => {
@@ -147,7 +196,6 @@ export default function AdminAwards() {
     return map;
   }, [votes]);
 
-  // Sorted nominee list for the active category detail view
   const activeSortedNominees = useMemo(() => {
     if (!activeCategory) return [];
     const counts = nominationsByCategory[activeCategory.id] || {};
@@ -163,10 +211,9 @@ export default function AdminAwards() {
       .sort((a, b) => b.nominations - a.nominations);
   }, [activeCategory, nominationsByCategory, classmateMap, finalistsByCategoryMap, voteMap]);
 
-  // Finalists with vote counts for active category
   const activeFinalistResults = useMemo(() => {
     if (!activeCategory) return [];
-    const catFinalists = finalists
+    return finalists
       .filter((f) => f.category_id === activeCategory.id)
       .map((f) => ({
         ...f,
@@ -175,14 +222,13 @@ export default function AdminAwards() {
       }))
       .filter((f) => f.classmate)
       .sort((a, b) => b.votes - a.votes);
-    return catFinalists;
   }, [activeCategory, finalists, classmateMap, voteMap]);
 
-  // ─── CATEGORY CRUD ──────────────────────────────────────────
-
+  // ─── CATEGORY CRUD ────────────────────────────────────────
   function openNewCategory() {
     setEditingCategory(null);
     setForm(emptyCategory);
+    setFormErrors({});
     setMessage(""); setError("");
     setShowModal(true);
   }
@@ -190,12 +236,13 @@ export default function AdminAwards() {
   function openEditCategory(cat) {
     setEditingCategory(cat);
     setForm({
-      name:             cat.name || "",
-      icon:             cat.icon || "🏆",
-      description:      cat.description || "",
-      nomination_open:  cat.nomination_open,
-      voting_open:      cat.voting_open,
+      name:            cat.name || "",
+      icon:            cat.icon || "🏆",
+      description:     cat.description || "",
+      nomination_open: cat.nomination_open,
+      voting_open:     cat.voting_open,
     });
+    setFormErrors({});
     setMessage(""); setError("");
     setShowModal(true);
   }
@@ -203,11 +250,20 @@ export default function AdminAwards() {
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
     setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    if (formErrors[name]) setFormErrors((prev) => ({ ...prev, [name]: null }));
+  }
+
+  function validateCategoryForm() {
+    const errors = {};
+    if (!form.name.trim()) errors.name = "Award name is required.";
+    if (form.name.trim().length > 100) errors.name = "Award name must be 100 characters or fewer.";
+    return errors;
   }
 
   async function saveCategory(e) {
     e.preventDefault();
-    if (!form.name.trim()) { setError("Please enter an award category name."); return; }
+    const errors = validateCategoryForm();
+    if (Object.keys(errors).length > 0) { setFormErrors(errors); return; }
 
     setSaving(true);
     setMessage(""); setError("");
@@ -222,123 +278,122 @@ export default function AdminAwards() {
       };
 
       if (editingCategory) {
-        const { error: e } = await supabase
-          .from("award_categories").update(payload).eq("id", editingCategory.id);
+        const { error: e } = await supabase.from("award_categories").update(payload).eq("id", editingCategory.id);
         if (e) throw e;
-        setMessage("Award updated.");
+        setMessage(`"${payload.name}" updated successfully.`);
       } else {
-        const { error: e } = await supabase
-          .from("award_categories").insert(payload);
+        const { error: e } = await supabase.from("award_categories").insert(payload);
         if (e) throw e;
-        setMessage("Award created.");
+        setMessage(`"${payload.name}" created successfully.`);
       }
 
       setShowModal(false);
       await loadData();
     } catch (err) {
-      setError(err.message || "Could not save award.");
+      setError(err.message || "Could not save award. Please try again.");
     } finally {
       setSaving(false);
     }
   }
 
-  async function deleteCategory(cat) {
-    if (!window.confirm(`Delete "${cat.name}"?\n\nThis also deletes all nominations, finalists and votes for this award.`)) return;
-    setMessage(""); setError("");
+  // ── Delete category — uses inline dialog ──────────────────
+  function requestDeleteCategory(cat) {
+    setConfirmDialog({
+      heading: `Delete "${cat.name}"?`,
+      body: "This will permanently delete all nominations, finalists and votes for this award. This action cannot be undone.",
+      confirmLabel: "Yes, Delete Award",
+      dangerous: true,
+      onConfirm: () => doDeleteCategory(cat),
+    });
+  }
 
+  async function doDeleteCategory(cat) {
+    setConfirmDialog(null);
+    setMessage(""); setError("");
     try {
-      const { error: e } = await supabase
-        .from("award_categories").delete().eq("id", cat.id);
+      const { error: e } = await supabase.from("award_categories").delete().eq("id", cat.id);
       if (e) throw e;
-      setMessage("Award deleted.");
+      setMessage(`"${cat.name}" deleted.`);
       if (activeCategory?.id === cat.id) setView(VIEW.LIST);
       await loadData();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not delete award.");
     }
   }
 
   async function toggleField(cat, field) {
     const newValue = !cat[field];
-    const { error: e } = await supabase
-      .from("award_categories").update({ [field]: newValue }).eq("id", cat.id);
+    const { error: e } = await supabase.from("award_categories").update({ [field]: newValue }).eq("id", cat.id);
     if (e) { setError(e.message); return; }
-    setMessage(
-      field === "nomination_open"
-        ? (newValue ? `Nominations opened for "${cat.name}".` : `Nominations closed for "${cat.name}".`)
-        : (newValue ? `Voting opened for "${cat.name}".` : `Voting closed for "${cat.name}".`)
-    );
+    const fieldLabel = field === "nomination_open" ? "Nominations" : "Voting";
+    setMessage(`${fieldLabel} ${newValue ? "opened" : "closed"} for "${cat.name}".`);
     await loadData();
-    // Keep activeCategory in sync
     if (activeCategory?.id === cat.id) {
       setActiveCategory((prev) => ({ ...prev, [field]: newValue }));
     }
   }
 
-  // ─── FINALIST MANAGEMENT ────────────────────────────────────
-
+  // ── Finalist management ───────────────────────────────────
   async function addFinalist(categoryId, classmateId) {
     const { data: { user } } = await supabase.auth.getUser();
-    const { error: e } = await supabase
-      .from("award_finalists")
-      .upsert(
-        { category_id: categoryId, classmate_id: classmateId, added_by: user?.email || null },
-        { onConflict: "category_id,classmate_id", ignoreDuplicates: true }
-      );
+    const { error: e } = await supabase.from("award_finalists").upsert(
+      { category_id: categoryId, classmate_id: classmateId, added_by: user?.email || null },
+      { onConflict: "category_id,classmate_id", ignoreDuplicates: true }
+    );
     if (e) { setError(e.message); return; }
+    setMessage("Finalist added.");
     await loadData();
   }
 
   async function removeFinalist(categoryId, classmateId) {
-    const { error: e } = await supabase
-      .from("award_finalists")
-      .delete()
-      .eq("category_id", categoryId)
-      .eq("classmate_id", classmateId);
+    const { error: e } = await supabase.from("award_finalists")
+      .delete().eq("category_id", categoryId).eq("classmate_id", classmateId);
     if (e) { setError(e.message); return; }
+    setMessage("Finalist removed.");
     await loadData();
   }
 
-  // Add all nominees as finalists at once
-  async function addAllNomineesAsFinalists(categoryId) {
-    const nominees = activeSortedNominees.filter((n) => !n.isFinalist);
-    if (nominees.length === 0) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    const rows = nominees.map((n) => ({
-      category_id:  categoryId,
-      classmate_id: n.nomineeId,
-      added_by:     user?.email || null,
-    }));
-
-    const { error: e } = await supabase
-      .from("award_finalists")
-      .upsert(rows, { onConflict: "category_id,classmate_id", ignoreDuplicates: true });
-    if (e) { setError(e.message); return; }
-    setMessage("All nominees added as finalists.");
-    await loadData();
+  // ── Seed defaults — uses inline dialog ────────────────────
+  function requestSeedDefaults() {
+    setConfirmDialog({
+      heading: "Add default award categories?",
+      body: "This will add 6 standard award categories. Existing categories will not be affected.",
+      confirmLabel: "Yes, Add Defaults",
+      dangerous: false,
+      onConfirm: doSeedDefaults,
+    });
   }
 
-  // ─── SEED DEFAULT CATEGORIES ────────────────────────────────
-
-  async function seedDefaultCategories() {
-    if (!window.confirm("Add the 6 default award categories?\n\nExisting categories will not be affected.")) return;
+  async function doSeedDefaults() {
+    setConfirmDialog(null);
     setSaving(true);
     try {
-      const { error: e } = await supabase
-        .from("award_categories")
-        .insert(DEFAULT_CATEGORIES.map((c) => ({ ...c, nomination_open: false, voting_open: false })));
+      const { error: e } = await supabase.from("award_categories").insert(
+        DEFAULT_CATEGORIES.map((c) => ({ ...c, nomination_open: false, voting_open: false }))
+      );
       if (e) throw e;
-      setMessage("Default categories added.");
+      setMessage("6 default categories added.");
       await loadData();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not add defaults.");
     } finally {
       setSaving(false);
     }
   }
 
-  // ─── OPEN DETAIL VIEW ───────────────────────────────────────
+  async function addAllNomineesAsFinalists(categoryId) {
+    const nominees = activeSortedNominees.filter((n) => !n.isFinalist);
+    if (nominees.length === 0) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const rows = nominees.map((n) => ({
+      category_id: categoryId, classmate_id: n.nomineeId, added_by: user?.email || null,
+    }));
+    const { error: e } = await supabase.from("award_finalists")
+      .upsert(rows, { onConflict: "category_id,classmate_id", ignoreDuplicates: true });
+    if (e) { setError(e.message); return; }
+    setMessage(`${nominees.length} nominee${nominees.length !== 1 ? "s" : ""} added as finalists.`);
+    await loadData();
+  }
 
   function openDetail(cat) {
     setActiveCategory(cat);
@@ -346,18 +401,17 @@ export default function AdminAwards() {
     setView(VIEW.DETAIL);
   }
 
-  // ─── RENDER ─────────────────────────────────────────────────
-
+  // ─── LOADING ──────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <div className="dashboard-spinner" />
-        <h2>Loading Awards...</h2>
+      <div className="empty-message" role="status" aria-live="polite" aria-label="Loading awards">
+        <span className="admin-page-spinner" aria-hidden="true" />
+        <strong>Loading Awards…</strong>
       </div>
     );
   }
 
-  // ── DETAIL VIEW ──────────────────────────────────────────────
+  // ─── DETAIL VIEW ──────────────────────────────────────────
   if (view === VIEW.DETAIL && activeCategory) {
     const totalNominations = nominations.filter((n) => n.category_id === activeCategory.id).length;
     const totalVotes       = votes.filter((v) => v.category_id === activeCategory.id).length;
@@ -365,21 +419,19 @@ export default function AdminAwards() {
 
     return (
       <div>
-
-        {/* Back */}
         <button
           className="awards-admin-back-btn"
           onClick={() => { setView(VIEW.LIST); setActiveCategory(null); }}
+          aria-label="Back to all award categories"
         >
           ← Back to All Awards
         </button>
 
-        {/* Header */}
         <div className="page-header" style={{ marginTop: 8 }}>
           <div>
             <p className="page-eyebrow">AWARD MANAGEMENT</p>
             <h1 style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span>{getCategoryIcon(activeCategory)}</span>
+              <span aria-hidden="true">{getCategoryIcon(activeCategory)}</span>
               {activeCategory.name}
             </h1>
             {activeCategory.description && (
@@ -387,26 +439,57 @@ export default function AdminAwards() {
             )}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="secondary-button" onClick={() => openEditCategory(activeCategory)}>
+            <button
+              className="secondary-button"
+              onClick={() => openEditCategory(activeCategory)}
+              aria-label={`Edit ${activeCategory.name}`}
+            >
               Edit Award
             </button>
-            <button className="secondary-button" onClick={loadData}>↻ Refresh</button>
+            <button
+              className="secondary-button"
+              onClick={loadData}
+              aria-label="Refresh award data"
+            >
+              <span aria-hidden="true">↻</span> Refresh
+            </button>
           </div>
         </div>
 
-        {message && <div className="admin-success-message">{message}</div>}
-        {error   && <div className="admin-error-message">{error}</div>}
+        {/* Feedback — ARIA live */}
+        <div aria-live="polite" aria-atomic="true">
+          {message && (
+            <div className="admin-success-message" role="status">
+              <span aria-hidden="true">✓ </span>{message}
+            </div>
+          )}
+        </div>
+        <div aria-live="assertive">
+          {error && (
+            <div className="admin-error-message" role="alert">
+              <span aria-hidden="true">⚠ </span>{error}
+            </div>
+          )}
+        </div>
 
         {/* Status controls */}
-        <div className="awards-status-controls">
+        <div className="awards-status-controls" role="group" aria-label="Nomination and voting controls">
           <div className="awards-status-card">
             <div>
               <span className="page-eyebrow">NOMINATIONS</span>
-              <p>{activeCategory.nomination_open ? "Open — classmates can nominate" : "Closed"}</p>
+              <p style={{ color: "#667085", fontSize: 13, margin: "4px 0 0" }}>
+                {activeCategory.nomination_open
+                  ? "Open — classmates can nominate"
+                  : "Closed — nominations not accepted"}
+              </p>
             </div>
             <button
               className={activeCategory.nomination_open ? "secondary-button" : "admin-primary-button"}
               onClick={() => toggleField(activeCategory, "nomination_open")}
+              aria-label={activeCategory.nomination_open
+                ? `Close nominations for ${activeCategory.name}`
+                : `Open nominations for ${activeCategory.name}`}
+              aria-pressed={activeCategory.nomination_open}
             >
               {activeCategory.nomination_open ? "Close Nominations" : "Open Nominations"}
             </button>
@@ -415,11 +498,19 @@ export default function AdminAwards() {
           <div className="awards-status-card">
             <div>
               <span className="page-eyebrow">VOTING</span>
-              <p>{activeCategory.voting_open ? "Open — classmates can vote" : "Closed"}</p>
+              <p style={{ color: "#667085", fontSize: 13, margin: "4px 0 0" }}>
+                {activeCategory.voting_open
+                  ? "Open — classmates can vote"
+                  : "Closed — voting not active"}
+              </p>
             </div>
             <button
               className={activeCategory.voting_open ? "secondary-button" : "admin-primary-button"}
               onClick={() => toggleField(activeCategory, "voting_open")}
+              aria-label={activeCategory.voting_open
+                ? `Close voting for ${activeCategory.name}`
+                : `Open voting for ${activeCategory.name}`}
+              aria-pressed={activeCategory.voting_open}
             >
               {activeCategory.voting_open ? "Close Voting" : "Open Voting"}
             </button>
@@ -427,13 +518,25 @@ export default function AdminAwards() {
         </div>
 
         {/* Summary */}
-        <div className="summary-cards" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: 28 }}>
-          <div><span>Nominations</span><strong>{totalNominations}</strong></div>
-          <div><span>Finalists</span><strong>{totalFinalists}</strong></div>
-          <div><span>Votes Cast</span><strong>{totalVotes}</strong></div>
+        <div
+          className="summary-cards"
+          role="list"
+          aria-label="Award statistics"
+          style={{ gridTemplateColumns: "repeat(3,1fr)", marginBottom: 28 }}
+        >
+          {[
+            { label: "Nominations", value: totalNominations },
+            { label: "Finalists",   value: totalFinalists },
+            { label: "Votes Cast",  value: totalVotes },
+          ].map(({ label, value }) => (
+            <div key={label} role="listitem" aria-label={`${label}: ${value}`}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </div>
+          ))}
         </div>
 
-        {/* ── NOMINATIONS SECTION ── */}
+        {/* Nominations table */}
         <div className="data-card" style={{ marginBottom: 24 }}>
           <div className="data-card-header">
             <div>
@@ -447,6 +550,7 @@ export default function AdminAwards() {
               <button
                 className="admin-primary-button"
                 onClick={() => addAllNomineesAsFinalists(activeCategory.id)}
+                aria-label="Add all nominees as finalists"
               >
                 Add All as Finalists
               </button>
@@ -454,21 +558,21 @@ export default function AdminAwards() {
           </div>
 
           {activeSortedNominees.length === 0 ? (
-            <div className="empty-message">
-              <div className="empty-icon">🗳️</div>
+            <div className="empty-message" role="status">
+              <div className="empty-icon" aria-hidden="true">🗳️</div>
               <strong>No nominations yet</strong>
               <p>Open nominations so classmates can start nominating.</p>
             </div>
           ) : (
             <div className="table-scroll">
-              <table className="admin-table">
+              <table className="admin-table" aria-label={`Nominations for ${activeCategory.name}`}>
                 <thead>
                   <tr>
-                    <th>Nominee</th>
-                    <th>Class ID</th>
-                    <th>Nominations</th>
-                    <th>Finalist</th>
-                    <th>Action</th>
+                    <th scope="col">Nominee</th>
+                    <th scope="col">Class ID</th>
+                    <th scope="col">Nominations</th>
+                    <th scope="col">Finalist Status</th>
+                    <th scope="col">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -476,19 +580,21 @@ export default function AdminAwards() {
                     <tr key={row.nomineeId}>
                       <td><strong>{row.classmate.full_name}</strong></td>
                       <td>
-                        <code style={{ background: "#f4f0e6", padding: "4px 7px", borderRadius: 5, fontSize: 11 }}>
+                        <code aria-label={`Class ID ${row.classmate.class_id}`}
+                          style={{ background: "#f4f0e6", padding: "4px 7px", borderRadius: 5, fontSize: 11 }}>
                           {row.classmate.class_id}
                         </code>
                       </td>
                       <td>
-                        <strong style={{ color: "#b28a45" }}>{row.nominations}</strong>
+                        <strong style={{ color: "#b28a45" }}
+                          aria-label={`${row.nominations} nominations`}>
+                          {row.nominations}
+                        </strong>
                       </td>
                       <td>
-                        {row.isFinalist ? (
-                          <span className="admin-status-badge status-paid">✓ Finalist</span>
-                        ) : (
-                          <span className="admin-status-badge status-unpaid">Not Added</span>
-                        )}
+                        {row.isFinalist
+                          ? <span className="admin-status-badge status-paid" aria-label="Is a finalist">✓ Finalist</span>
+                          : <span className="admin-status-badge status-unpaid" aria-label="Not yet a finalist">Not Added</span>}
                       </td>
                       <td>
                         {row.isFinalist ? (
@@ -496,6 +602,7 @@ export default function AdminAwards() {
                             className="admin-table-action"
                             style={{ background: "#fef3f2", color: "#b42318" }}
                             onClick={() => removeFinalist(activeCategory.id, row.nomineeId)}
+                            aria-label={`Remove ${row.classmate.full_name} from finalists`}
                           >
                             Remove
                           </button>
@@ -503,6 +610,7 @@ export default function AdminAwards() {
                           <button
                             className="admin-table-action"
                             onClick={() => addFinalist(activeCategory.id, row.nomineeId)}
+                            aria-label={`Add ${row.classmate.full_name} as finalist`}
                           >
                             Add Finalist
                           </button>
@@ -516,65 +624,71 @@ export default function AdminAwards() {
           )}
         </div>
 
-        {/* ── FINALISTS + RESULTS ── */}
+        {/* Finalists & results */}
         <div className="data-card">
           <div className="data-card-header">
             <div>
-              <h2>Finalists & Voting Results</h2>
+              <h2>Finalists &amp; Voting Results</h2>
               <p>
                 {activeFinalistResults.length} finalist{activeFinalistResults.length !== 1 ? "s" : ""}.
-                {activeCategory.voting_open
-                  ? " Voting is currently open."
-                  : " Open voting when you're ready."}
+                {activeCategory.voting_open ? " Voting is currently open." : " Open voting when you're ready."}
               </p>
             </div>
           </div>
 
           {activeFinalistResults.length === 0 ? (
-            <div className="empty-message">
-              <div className="empty-icon">🏆</div>
+            <div className="empty-message" role="status">
+              <div className="empty-icon" aria-hidden="true">🏆</div>
               <strong>No finalists yet</strong>
               <p>Add finalists from the nominations above.</p>
             </div>
           ) : (
             <div className="table-scroll">
-              <table className="admin-table">
+              <table className="admin-table" aria-label={`Finalists and results for ${activeCategory.name}`}>
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Finalist</th>
-                    <th>Class ID</th>
-                    <th>Votes</th>
-                    <th>Action</th>
+                    <th scope="col">Rank</th>
+                    <th scope="col">Finalist</th>
+                    <th scope="col">Class ID</th>
+                    <th scope="col">Votes</th>
+                    <th scope="col">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {activeFinalistResults.map((f, index) => (
                     <tr key={f.classmate_id}>
                       <td>
-                        <strong style={{ color: index === 0 ? "#b28a45" : "#667085" }}>
+                        <strong
+                          style={{ color: index === 0 ? "#b28a45" : "#667085" }}
+                          aria-label={`Rank ${index + 1}`}
+                        >
                           {index + 1}
                         </strong>
                       </td>
                       <td>
                         <strong>
-                          {index === 0 && totalVotes > 0 && "🏆 "}
+                          {index === 0 && totalVotes > 0 && <span aria-hidden="true">🏆 </span>}
                           {f.classmate.full_name}
+                          {index === 0 && totalVotes > 0 && <span className="sr-only"> (current leader)</span>}
                         </strong>
                       </td>
                       <td>
-                        <code style={{ background: "#f4f0e6", padding: "4px 7px", borderRadius: 5, fontSize: 11 }}>
+                        <code aria-label={`Class ID ${f.classmate.class_id}`}
+                          style={{ background: "#f4f0e6", padding: "4px 7px", borderRadius: 5, fontSize: 11 }}>
                           {f.classmate.class_id}
                         </code>
                       </td>
                       <td>
-                        <strong style={{ color: "#172033", fontSize: 16 }}>{f.votes}</strong>
+                        <strong style={{ fontSize: 16 }} aria-label={`${f.votes} votes`}>
+                          {f.votes}
+                        </strong>
                       </td>
                       <td>
                         <button
                           className="admin-table-action"
                           style={{ background: "#fef3f2", color: "#b42318" }}
                           onClick={() => removeFinalist(activeCategory.id, f.classmate_id)}
+                          aria-label={`Remove ${f.classmate.full_name} from finalists`}
                         >
                           Remove
                         </button>
@@ -587,14 +701,24 @@ export default function AdminAwards() {
           )}
         </div>
 
+        {/* Confirm dialog */}
+        {confirmDialog && (
+          <ConfirmDialog
+            heading={confirmDialog.heading}
+            body={confirmDialog.body}
+            confirmLabel={confirmDialog.confirmLabel}
+            dangerous={confirmDialog.dangerous}
+            onConfirm={confirmDialog.onConfirm}
+            onCancel={() => setConfirmDialog(null)}
+          />
+        )}
       </div>
     );
   }
 
-  // ── LIST VIEW ────────────────────────────────────────────────
+  // ─── LIST VIEW ────────────────────────────────────────────
   return (
     <div>
-
       <div className="page-header">
         <div>
           <p className="page-eyebrow">REUNION AWARDS</p>
@@ -603,42 +727,73 @@ export default function AdminAwards() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {categories.length === 0 && (
-            <button className="secondary-button" onClick={seedDefaultCategories} disabled={saving}>
+            <button
+              className="secondary-button"
+              onClick={requestSeedDefaults}
+              disabled={saving}
+              aria-label="Add 6 default award categories"
+            >
               Add Default Awards
             </button>
           )}
-          <button className="secondary-button" onClick={loadData}>↻ Refresh</button>
-          <button className="admin-primary-button" onClick={openNewCategory}>+ Add Award</button>
+          <button className="secondary-button" onClick={loadData} aria-label="Refresh awards list">
+            <span aria-hidden="true">↻</span> Refresh
+          </button>
+          <button className="admin-primary-button" onClick={openNewCategory} aria-label="Create a new award category">
+            + Add Award
+          </button>
         </div>
       </div>
 
-      {message && <div className="admin-success-message">{message}</div>}
-      {error   && <div className="admin-error-message">{error}</div>}
+      {/* Feedback */}
+      <div aria-live="polite" aria-atomic="true">
+        {message && (
+          <div className="admin-success-message" role="status">
+            <span aria-hidden="true">✓ </span>{message}
+          </div>
+        )}
+      </div>
+      <div aria-live="assertive">
+        {error && (
+          <div className="admin-error-message" role="alert">
+            <span aria-hidden="true">⚠ </span>{error}
+          </div>
+        )}
+      </div>
 
       {/* Summary */}
-      <div className="summary-cards" style={{ marginBottom: 24 }}>
-        <div><span>Award Categories</span><strong>{categories.length}</strong></div>
-        <div><span>Total Nominations</span><strong>{nominations.length}</strong></div>
-        <div>
-          <span>Total Finalists</span>
-          <strong>{finalists.length}</strong>
-        </div>
-        <div><span>Total Votes</span><strong>{votes.length}</strong></div>
+      <div
+        className="summary-cards"
+        role="list"
+        aria-label="Awards overview"
+        style={{ marginBottom: 24 }}
+      >
+        {[
+          { label: "Award Categories",  value: categories.length },
+          { label: "Total Nominations", value: nominations.length },
+          { label: "Total Finalists",   value: finalists.length },
+          { label: "Total Votes",       value: votes.length },
+        ].map(({ label, value }) => (
+          <div key={label} role="listitem" aria-label={`${label}: ${value}`}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
       </div>
 
-      {/* Category list */}
+      {/* Category grid */}
       {categories.length === 0 ? (
-        <div className="awards-admin-empty">
-          <span>🏆</span>
+        <div className="awards-admin-empty" role="status">
+          <span aria-hidden="true">🏆</span>
           <h3>No award categories yet</h3>
           <p>Create your first award or add the default set to get started quickly.</p>
           <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
             <button className="admin-primary-button" onClick={openNewCategory}>+ Create Award</button>
-            <button className="secondary-button" onClick={seedDefaultCategories}>Add Default Awards</button>
+            <button className="secondary-button" onClick={requestSeedDefaults}>Add Default Awards</button>
           </div>
         </div>
       ) : (
-        <div className="awards-admin-grid">
+        <div className="awards-admin-grid" role="list" aria-label="Award categories">
           {categories.map((cat) => {
             const nomCount      = nominations.filter((n) => n.category_id === cat.id).length;
             const finalistCount = finalists.filter((f) => f.category_id === cat.id).length;
@@ -646,150 +801,229 @@ export default function AdminAwards() {
             const icon          = getCategoryIcon(cat);
 
             return (
-              <div key={cat.id} className="awards-admin-card">
-
+              <div key={cat.id} className="awards-admin-card" role="listitem">
                 <div className="awards-admin-card-header">
-                  <span className="awards-admin-icon">{icon}</span>
+                  <span className="awards-admin-icon" aria-hidden="true">{icon}</span>
                   <div className="awards-admin-card-title">
                     <h3>{cat.name}</h3>
                     {cat.description && <p>{cat.description}</p>}
                   </div>
                 </div>
 
-                {/* Status badges */}
-                <div className="awards-status-row">
-                  <span className={`admin-status-badge ${cat.nomination_open ? "status-paid" : "status-unpaid"}`}>
+                <div className="awards-status-row" aria-label="Status">
+                  <span className={`admin-status-badge ${cat.nomination_open ? "status-paid" : "status-unpaid"}`}
+                    aria-label={cat.nomination_open ? "Nominations open" : "Nominations closed"}>
                     {cat.nomination_open ? "Nominations Open" : "Nominations Closed"}
                   </span>
-                  <span className={`admin-status-badge ${cat.voting_open ? "status-paid" : "status-unpaid"}`}>
+                  <span className={`admin-status-badge ${cat.voting_open ? "status-paid" : "status-unpaid"}`}
+                    aria-label={cat.voting_open ? "Voting open" : "Voting closed"}>
                     {cat.voting_open ? "Voting Open" : "Voting Closed"}
                   </span>
                 </div>
 
-                {/* Counts */}
-                <div className="awards-admin-counts">
-                  <div><strong>{nomCount}</strong><span>Nominations</span></div>
-                  <div><strong>{finalistCount}</strong><span>Finalists</span></div>
-                  <div><strong>{voteCount}</strong><span>Votes</span></div>
+                <div
+                  className="awards-admin-counts"
+                  aria-label={`${nomCount} nominations, ${finalistCount} finalists, ${voteCount} votes`}
+                >
+                  <div><strong aria-hidden="true">{nomCount}</strong><span>Nominations</span></div>
+                  <div><strong aria-hidden="true">{finalistCount}</strong><span>Finalists</span></div>
+                  <div><strong aria-hidden="true">{voteCount}</strong><span>Votes</span></div>
                 </div>
 
-                {/* Actions */}
                 <div className="awards-admin-actions">
                   <button
                     className="admin-primary-button"
                     onClick={() => openDetail(cat)}
                     style={{ flex: 1 }}
+                    aria-label={`Manage ${cat.name}`}
                   >
                     Manage →
                   </button>
                   <button
                     className="admin-table-action"
                     onClick={() => openEditCategory(cat)}
+                    aria-label={`Edit ${cat.name}`}
                   >
                     Edit
                   </button>
                   <button
                     className="admin-table-action"
                     style={{ background: "#fef3f2", color: "#b42318" }}
-                    onClick={() => deleteCategory(cat)}
+                    onClick={() => requestDeleteCategory(cat)}
+                    aria-label={`Delete ${cat.name}`}
                   >
                     Delete
                   </button>
                 </div>
-
               </div>
             );
           })}
         </div>
       )}
 
-      {/* ── CREATE / EDIT MODAL ── */}
+      {/* Create / Edit modal */}
       {showModal && (
-        <div className="modal-background" onClick={() => setShowModal(false)}>
-          <div className="details-modal" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
-            <button className="close-modal" onClick={() => setShowModal(false)}>×</button>
+        <div
+          className="modal-background"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="award-modal-heading"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="details-modal"
+            style={{ maxWidth: 540 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="close-modal"
+              onClick={() => setShowModal(false)}
+              aria-label="Close award form"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
 
-            <p className="page-eyebrow">AWARD MANAGEMENT</p>
-            <h2 style={{ marginBottom: 20 }}>
+            <p className="page-eyebrow" aria-hidden="true">AWARD MANAGEMENT</p>
+            <h2
+              id="award-modal-heading"
+              tabIndex={-1}
+              ref={modalHeadingRef}
+              style={{ marginBottom: 20, outline: "none" }}
+            >
               {editingCategory ? "Edit Award" : "Create Award"}
             </h2>
 
-            {error && <div className="admin-error-message">{error}</div>}
+            <div aria-live="assertive">
+              {error && (
+                <div className="admin-error-message" role="alert">
+                  <span aria-hidden="true">⚠ </span>{error}
+                </div>
+              )}
+            </div>
 
-            <form className="admin-form" onSubmit={saveCategory}>
+            <form className="admin-form" onSubmit={saveCategory} noValidate aria-label="Award category form">
 
-              <label>
-                Award Name *
+              <div>
+                <label htmlFor="award-name">
+                  Award Name <span aria-hidden="true" style={{ color: "#d93025" }}>*</span>
+                </label>
                 <input
+                  id="award-name"
                   type="text"
                   name="name"
                   value={form.name}
                   onChange={handleChange}
                   placeholder="e.g. Most Successful Entrepreneur"
                   required
+                  aria-required="true"
+                  aria-describedby={formErrors.name ? "award-name-error" : undefined}
+                  aria-invalid={!!formErrors.name}
+                  maxLength={100}
                 />
-              </label>
-
-              <div className="admin-form-grid">
-                <label>
-                  Icon (emoji)
-                  <input
-                    type="text"
-                    name="icon"
-                    value={form.icon}
-                    onChange={handleChange}
-                    placeholder="🏆"
-                    maxLength={4}
-                  />
-                </label>
+                {formErrors.name && (
+                  <p id="award-name-error" className="contrib-field-error" role="alert">
+                    <span aria-hidden="true">⚠ </span>{formErrors.name}
+                  </p>
+                )}
               </div>
 
-              <label>
-                Description
+              <div>
+                <label htmlFor="award-icon">Icon (emoji)</label>
+                <input
+                  id="award-icon"
+                  type="text"
+                  name="icon"
+                  value={form.icon}
+                  onChange={handleChange}
+                  placeholder="🏆"
+                  maxLength={4}
+                  aria-describedby="award-icon-hint"
+                />
+                <p id="award-icon-hint" className="awards-field-hint" style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
+                  Paste a single emoji to represent this award.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="award-description">Description</label>
                 <textarea
+                  id="award-description"
                   name="description"
                   value={form.description}
                   onChange={handleChange}
                   rows="3"
                   placeholder="What does this award recognise?"
+                  maxLength={300}
                 />
-              </label>
-
-              <div className="awards-checkbox-row">
-                <label className="awards-checkbox-label">
-                  <input
-                    type="checkbox"
-                    name="nomination_open"
-                    checked={form.nomination_open}
-                    onChange={handleChange}
-                  />
-                  Allow nominations
-                </label>
-                <label className="awards-checkbox-label">
-                  <input
-                    type="checkbox"
-                    name="voting_open"
-                    checked={form.voting_open}
-                    onChange={handleChange}
-                  />
-                  Allow voting
-                </label>
               </div>
+
+              <fieldset style={{ border: "none", padding: 0, margin: 0 }}>
+                <legend style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, color: "#333" }}>
+                  Award Status
+                </legend>
+                <div className="awards-checkbox-row">
+                  <label className="awards-checkbox-label">
+                    <input
+                      type="checkbox"
+                      name="nomination_open"
+                      checked={form.nomination_open}
+                      onChange={handleChange}
+                      aria-describedby="nomination-hint"
+                    />
+                    Allow nominations
+                  </label>
+                  <label className="awards-checkbox-label">
+                    <input
+                      type="checkbox"
+                      name="voting_open"
+                      checked={form.voting_open}
+                      onChange={handleChange}
+                      aria-describedby="voting-hint"
+                    />
+                    Allow voting
+                  </label>
+                </div>
+                <p id="nomination-hint" className="sr-only">
+                  When enabled, classmates can nominate others for this award.
+                </p>
+                <p id="voting-hint" className="sr-only">
+                  When enabled, classmates can cast their vote among the approved finalists.
+                </p>
+              </fieldset>
 
               <div className="admin-modal-actions">
-                <button type="button" className="secondary-button" onClick={() => setShowModal(false)}>
+                <button
+                  type="button"
+                  className="admin-secondary-button"
+                  onClick={() => setShowModal(false)}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="admin-primary-button" disabled={saving}>
-                  {saving ? "Saving..." : editingCategory ? "Update Award" : "Create Award"}
+                <button
+                  type="submit"
+                  className="admin-primary-button"
+                  disabled={saving}
+                  aria-busy={saving}
+                >
+                  {saving ? "Saving…" : editingCategory ? "Update Award" : "Create Award"}
                 </button>
               </div>
-
             </form>
           </div>
         </div>
       )}
 
+      {/* Inline confirm dialog */}
+      {confirmDialog && (
+        <ConfirmDialog
+          heading={confirmDialog.heading}
+          body={confirmDialog.body}
+          confirmLabel={confirmDialog.confirmLabel}
+          dangerous={confirmDialog.dangerous}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
     </div>
   );
 }

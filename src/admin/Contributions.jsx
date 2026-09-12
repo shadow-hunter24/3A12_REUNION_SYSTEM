@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import "./AdminPages.css";
 
-const EXPECTED_AMOUNT = 500;
+const DEFAULT_EXPECTED = 500;
 
 const PAYMENT_METHODS = [
   "MTN MOBILE MONEY",
@@ -34,10 +34,36 @@ function formatDate(dateString) {
 
 function StatusBadge({ status }) {
   const s = (status || "UNPAID").toUpperCase();
+  const label = s === "PAID" ? "Fully paid" : s === "PARTIAL" ? "Partially paid" : "Unpaid";
   return (
-    <span className={`admin-status-badge status-${s.toLowerCase()}`}>
+    <span className={`admin-status-badge status-${s.toLowerCase()}`} aria-label={label}>
       {s}
     </span>
+  );
+}
+
+// ── Shared field error ────────────────────────────────────────
+function FieldErr({ id, msg }) {
+  if (!msg) return null;
+  return (
+    <p id={id} className="contrib-field-error" role="alert">
+      <span aria-hidden="true">⚠ </span>{msg}
+    </p>
+  );
+}
+
+// ── Inline delete confirmation ────────────────────────────────
+function DeleteConfirm({ payment, onConfirm, onCancel, saving }) {
+  const confirmRef = useRef(null);
+  useEffect(() => { confirmRef.current?.focus(); }, []);
+  return (
+    <div className="contrib-delete-confirm" role="group" aria-label="Confirm payment deletion">
+      <span>Delete this payment?</span>
+      <button ref={confirmRef} className="contrib-delete-yes" onClick={() => onConfirm(payment)} disabled={saving}>
+        Delete
+      </button>
+      <button className="contrib-delete-no" onClick={onCancel}>Cancel</button>
+    </div>
   );
 }
 
@@ -54,75 +80,79 @@ export default function Contributions() {
   const [contributions, setContributions] = useState([]);
   const [payments, setPayments]           = useState([]);
 
-  const [loading, setSaving_loading]      = useState(true);
-  const [saving, setSaving]               = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState(false);
 
-  // Which modal is open: null | "add" | "history" | "delete"
-  const [modal, setModal]                 = useState(null);
+  // modal: null | "add" | "history" | "editPayment" | "editExpected"
+  const [modal, setModal]                     = useState(null);
   const [activeClassmate, setActiveClassmate] = useState(null);
+  const [editingPayment, setEditingPayment]   = useState(null);
   const [deletingPayment, setDeletingPayment] = useState(null);
 
-  const [form, setForm]                   = useState(emptyPaymentForm);
-  const [search, setSearch]               = useState("");
-  const [statusFilter, setStatusFilter]   = useState("ALL");
+  const [form, setForm]           = useState(emptyPaymentForm);
+  const [formErrors, setFormErrors] = useState({});
 
-  const [message, setMessage]             = useState("");
-  const [error, setError]                 = useState("");
+  // Expected amount override form
+  const [expectedForm, setExpectedForm]       = useState({ amount: "" });
+  const [expectedFormError, setExpectedFormError] = useState("");
 
-  // ─── DATA LOADING ──────────────────────────────────────────
+  const [search, setSearch]           = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
+  const [message, setMessage] = useState("");
+  const [error, setError]     = useState("");
+
+  const modalHeadingRef = useRef(null);
+  useEffect(() => {
+    if (modal) modalHeadingRef.current?.focus();
+  }, [modal]);
+
+  useEffect(() => {
+    if (!modal) return;
+    function onKey(e) { if (e.key === "Escape") closeModal(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modal]);
+
+  // ─── DATA ─────────────────────────────────────────────────
   const loadData = useCallback(async () => {
-    setSaving_loading(true);
+    setLoading(true);
     setError("");
-
     try {
       const [
-        { data: classmatesData,    error: e1 },
-        { data: contributionsData, error: e2 },
-        { data: paymentsData,      error: e3 },
+        { data: cmData,    error: e1 },
+        { data: contData,  error: e2 },
+        { data: payData,   error: e3 },
       ] = await Promise.all([
-        supabase
-          .from("classmates")
-          .select("id, full_name, class_id, phone, email")
-          .order("full_name"),
-
-        supabase
-          .from("contributions")
-          .select("*"),
-
-        supabase
-          .from("contribution_payments")
-          .select("*")
-          .order("payment_date", { ascending: false }),
+        supabase.from("classmates").select("id, full_name, class_id, phone, email").order("full_name"),
+        supabase.from("contributions").select("*"),
+        supabase.from("contribution_payments").select("*").order("payment_date", { ascending: false }),
       ]);
 
       if (e1) throw e1;
       if (e2) throw e2;
       if (e3) throw e3;
 
-      setClassmates(classmatesData    || []);
-      setContributions(contributionsData || []);
-      setPayments(paymentsData        || []);
+      setClassmates(cmData    || []);
+      setContributions(contData || []);
+      setPayments(payData     || []);
     } catch (err) {
       console.error(err);
-      setError(err.message || "Unable to load data.");
+      setError(err.message || "Unable to load data. Please try again.");
     } finally {
-      setSaving_loading(false);
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ─── DERIVED MAPS ──────────────────────────────────────────
-
-  // contributions summary keyed by classmate_id
+  // ─── DERIVED MAPS ─────────────────────────────────────────
   const contributionMap = useMemo(() => {
     const map = {};
     contributions.forEach((c) => { map[c.classmate_id] = c; });
     return map;
   }, [contributions]);
 
-  // all payments grouped by classmate_id
   const paymentsByClassmate = useMemo(() => {
     const map = {};
     payments.forEach((p) => {
@@ -132,375 +162,534 @@ export default function Contributions() {
     return map;
   }, [payments]);
 
-  // ─── OVERALL STATS ─────────────────────────────────────────
-
+  // ─── STATS ────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const totalExpected = classmates.length * EXPECTED_AMOUNT;
-    const totalCollected = payments.reduce(
-      (sum, p) => sum + Number(p.amount || 0), 0
-    );
-
-    let paid = 0, partial = 0, unpaid = 0;
-
-    classmates.forEach((cm) => {
+    const totalExpected  = classmates.reduce((s, cm) => {
       const c = contributionMap[cm.id];
-      const status = c?.payment_status || "UNPAID";
-      if (status === "PAID")         paid++;
-      else if (status === "PARTIAL") partial++;
-      else                           unpaid++;
+      return s + Number(c?.expected_amount ?? DEFAULT_EXPECTED);
+    }, 0);
+    const totalCollected = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    let paid = 0, partial = 0, unpaid = 0;
+    classmates.forEach((cm) => {
+      const st = contributionMap[cm.id]?.payment_status || "UNPAID";
+      if (st === "PAID")         paid++;
+      else if (st === "PARTIAL") partial++;
+      else                       unpaid++;
     });
-
     return {
-      totalExpected,
-      totalCollected,
+      totalExpected, totalCollected,
       outstanding: Math.max(totalExpected - totalCollected, 0),
       paid, partial, unpaid,
-      progress: totalExpected > 0
-        ? Math.round((totalCollected / totalExpected) * 100)
-        : 0,
+      progress: totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0,
     };
   }, [classmates, payments, contributionMap]);
 
-  // ─── FILTERED TABLE ROWS ───────────────────────────────────
-
+  // ─── FILTERED ROWS ────────────────────────────────────────
   const rows = useMemo(() => {
     const term = search.toLowerCase().trim();
-
     return classmates
       .map((cm) => {
-        const contrib = contributionMap[cm.id];
+        const contrib        = contributionMap[cm.id];
+        const expectedAmount = Number(contrib?.expected_amount ?? DEFAULT_EXPECTED);
         const memberPayments = paymentsByClassmate[cm.id] || [];
-        const totalPaid = memberPayments.reduce(
-          (sum, p) => sum + Number(p.amount || 0), 0
-        );
-        const balance  = Math.max(EXPECTED_AMOUNT - totalPaid, 0);
-        const status   = contrib?.payment_status || "UNPAID";
-
-        return { cm, contrib, memberPayments, totalPaid, balance, status };
+        const totalPaid      = memberPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+        const balance        = Math.max(expectedAmount - totalPaid, 0);
+        const status         = contrib?.payment_status || "UNPAID";
+        return { cm, contrib, memberPayments, totalPaid, balance, status, expectedAmount };
       })
       .filter(({ cm, status }) => {
-        const matchesSearch =
+        const matchSearch =
           !term ||
           cm.full_name?.toLowerCase().includes(term) ||
           cm.class_id?.toLowerCase().includes(term) ||
-          cm.phone?.toLowerCase().includes(term) ||
-          cm.email?.toLowerCase().includes(term);
-
-        const matchesStatus =
-          statusFilter === "ALL" || status === statusFilter;
-
-        return matchesSearch && matchesStatus;
+          cm.phone?.toLowerCase().includes(term);
+        const matchStatus = statusFilter === "ALL" || status === statusFilter;
+        return matchSearch && matchStatus;
       });
   }, [classmates, contributionMap, paymentsByClassmate, search, statusFilter]);
 
-  // ─── FORM HANDLERS ─────────────────────────────────────────
-
-  function openAddPayment(classmate) {
-    setActiveClassmate(classmate);
+  // ─── MODAL HELPERS ────────────────────────────────────────
+  function openAddPayment(cm) {
+    setActiveClassmate(cm);
     setForm(emptyPaymentForm);
-    setMessage("");
-    setError("");
+    setFormErrors({});
+    setMessage(""); setError("");
     setModal("add");
   }
 
-  function openHistory(classmate) {
-    setActiveClassmate(classmate);
-    setMessage("");
-    setError("");
+  function openHistory(cm) {
+    setActiveClassmate(cm);
+    setDeletingPayment(null);
+    setEditingPayment(null);
+    setMessage(""); setError("");
     setModal("history");
+  }
+
+  function openEditExpected(cm) {
+    const contrib = contributionMap[cm.id];
+    setActiveClassmate(cm);
+    setExpectedForm({ amount: String(contrib?.expected_amount ?? DEFAULT_EXPECTED) });
+    setExpectedFormError("");
+    setMessage(""); setError("");
+    setModal("editExpected");
   }
 
   function closeModal() {
     setModal(null);
     setActiveClassmate(null);
+    setEditingPayment(null);
     setDeletingPayment(null);
+    setFormErrors({});
   }
 
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    if (formErrors[name]) setFormErrors((prev) => ({ ...prev, [name]: null }));
   }
 
-  // ─── SAVE NEW INSTALLMENT ──────────────────────────────────
+  // ─── VALIDATE PAYMENT FORM ────────────────────────────────
+  function validatePayment(f) {
+    const errs = {};
+    const amount = Number(f.amount);
+    if (!f.amount || isNaN(amount) || amount <= 0)
+      errs.amount = "Please enter a valid amount greater than GH₵0.00.";
+    else if (amount > 10000)
+      errs.amount = "Amount seems unusually large. Please double-check.";
+    if (!f.payment_date)
+      errs.payment_date = "Please select a payment date.";
+    return errs;
+  }
 
-  async function handleSubmit(e) {
+  // ─── ADD PAYMENT ──────────────────────────────────────────
+  async function handleSubmitAdd(e) {
     e.preventDefault();
-    setSaving(true);
-    setError("");
+    const errs = validatePayment(form);
+    if (Object.keys(errs).length > 0) { setFormErrors(errs); return; }
 
+    setSaving(true); setError("");
     try {
-      const amount = Number(form.amount);
-      if (!amount || amount <= 0) {
-        throw new Error("Please enter a valid payment amount.");
-      }
-
       const { data: { user } } = await supabase.auth.getUser();
+      const { error: insertError } = await supabase.from("contribution_payments").insert({
+        classmate_id:          activeClassmate.id,
+        amount:                Number(form.amount),
+        payment_method:        form.payment_method,
+        transaction_reference: form.transaction_reference.trim() || null,
+        payment_date:          form.payment_date || null,
+        recorded_by:           user?.email || null,
+        notes:                 form.notes.trim() || null,
+      });
+      if (insertError) throw insertError;
+      setMessage(`Payment of ${formatCurrency(form.amount)} recorded for ${activeClassmate.full_name}.`);
+      closeModal();
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Could not save payment. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
-      const { error: insertError } = await supabase
+  // ─── EDIT PAYMENT ─────────────────────────────────────────
+  function startEditPayment(p) {
+    setEditingPayment(p);
+    setForm({
+      amount:                String(p.amount),
+      payment_method:        p.payment_method || "MTN MOBILE MONEY",
+      transaction_reference: p.transaction_reference || "",
+      payment_date:          p.payment_date ? p.payment_date.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      notes:                 p.notes || "",
+    });
+    setFormErrors({});
+    setModal("editPayment");
+  }
+
+  async function handleSubmitEditPayment(e) {
+    e.preventDefault();
+    const errs = validatePayment(form);
+    if (Object.keys(errs).length > 0) { setFormErrors(errs); return; }
+
+    setSaving(true); setError("");
+    try {
+      const { error: updateError } = await supabase
         .from("contribution_payments")
-        .insert({
-          classmate_id:          activeClassmate.id,
-          amount,
+        .update({
+          amount:                Number(form.amount),
           payment_method:        form.payment_method,
           transaction_reference: form.transaction_reference.trim() || null,
           payment_date:          form.payment_date || null,
-          recorded_by:           user?.email || null,
           notes:                 form.notes.trim() || null,
-        });
+        })
+        .eq("id", editingPayment.id);
 
-      if (insertError) throw insertError;
-
-      setMessage("Payment recorded successfully.");
-      setModal(null);
+      if (updateError) throw updateError;
+      setMessage(`Payment updated successfully.`);
+      closeModal();
       await loadData();
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Could not save payment.");
+      setError(err.message || "Could not update payment. Please try again.");
     } finally {
       setSaving(false);
     }
   }
 
-  // ─── DELETE PAYMENT ────────────────────────────────────────
-
+  // ─── DELETE PAYMENT ───────────────────────────────────────
   async function handleDeletePayment(payment) {
-    setSaving(true);
-    setError("");
-
+    setSaving(true); setError("");
     try {
       const { error: deleteError } = await supabase
-        .from("contribution_payments")
-        .delete()
-        .eq("id", payment.id);
-
+        .from("contribution_payments").delete().eq("id", payment.id);
       if (deleteError) throw deleteError;
-
       setDeletingPayment(null);
       setMessage("Payment deleted.");
       await loadData();
-
-      // Refresh the history for the open classmate
-      // (payments state is updated by loadData)
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Could not delete payment.");
+      setError(err.message || "Could not delete payment. Please try again.");
     } finally {
       setSaving(false);
     }
   }
 
-  // ─── RENDER ────────────────────────────────────────────────
+  // ─── EDIT EXPECTED AMOUNT ─────────────────────────────────
+  async function handleSaveExpected(e) {
+    e.preventDefault();
+    const val = Number(expectedForm.amount);
+    if (!expectedForm.amount || isNaN(val) || val <= 0) {
+      setExpectedFormError("Please enter a valid expected amount greater than GH₵0.00.");
+      return;
+    }
+    if (val > 50000) {
+      setExpectedFormError("Amount seems unusually high. Please double-check.");
+      return;
+    }
+
+    setSaving(true); setError("");
+    try {
+      // Upsert the contributions row — update expected_amount
+      const { error: upsertError } = await supabase
+        .from("contributions")
+        .upsert(
+          {
+            classmate_id:    activeClassmate.id,
+            expected_amount: val,
+          },
+          { onConflict: "classmate_id" }
+        );
+      if (upsertError) throw upsertError;
+      setMessage(`Expected contribution for ${activeClassmate.full_name} updated to ${formatCurrency(val)}.`);
+      closeModal();
+      await loadData();
+    } catch (err) {
+      setExpectedFormError(err.message || "Could not update expected amount. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ─── DELETE CONTRIBUTION RECORD ───────────────────────────
+  async function handleDeleteContribution(cm) {
+    // This removes the contribution summary record AND (via FK cascade) all payments
+    const contrib = contributionMap[cm.id];
+    if (!contrib) {
+      setError(`No contribution record found for ${cm.full_name}.`);
+      return;
+    }
+    setSaving(true); setError("");
+    try {
+      // Delete all payments first (in case no ON DELETE CASCADE)
+      await supabase.from("contribution_payments").delete().eq("classmate_id", cm.id);
+      // Delete the contribution record itself
+      const { error: deleteError } = await supabase
+        .from("contributions")
+        .delete()
+        .eq("classmate_id", cm.id);
+      if (deleteError) throw deleteError;
+      setMessage(`Contribution record for ${cm.full_name} deleted. All payments removed.`);
+      closeModal();
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Could not delete contribution record. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ─── ACTIVE DATA ──────────────────────────────────────────
+  const activePayments  = activeClassmate ? (paymentsByClassmate[activeClassmate.id] || []) : [];
+  const activeTotalPaid = activePayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const activeExpected  = Number(contributionMap[activeClassmate?.id]?.expected_amount ?? DEFAULT_EXPECTED);
+  const activeBalance   = Math.max(activeExpected - activeTotalPaid, 0);
+  const activeStatus    = contributionMap[activeClassmate?.id]?.payment_status || "UNPAID";
 
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <div className="dashboard-spinner"></div>
-        <h2>Loading Contributions...</h2>
+      <div className="empty-message" role="status" aria-live="polite">
+        <span className="admin-page-spinner" aria-hidden="true" />
+        <strong>Loading Contributions…</strong>
       </div>
     );
   }
 
-  // Payments for the currently open history modal
-  const activePayments = activeClassmate
-    ? (paymentsByClassmate[activeClassmate.id] || [])
-    : [];
+  // ─── SHARED PAYMENT FORM BODY ─────────────────────────────
+  function PaymentFormFields() {
+    return (
+      <>
+        <div>
+          <label htmlFor="pay-amount">
+            Amount (GH₵) <span aria-hidden="true" style={{ color: "#d93025" }}>*</span>
+          </label>
+          <input
+            id="pay-amount"
+            type="number"
+            name="amount"
+            value={form.amount}
+            onChange={handleChange}
+            min="0.01"
+            step="0.01"
+            placeholder="e.g. 200.00"
+            required
+            aria-required="true"
+            aria-invalid={!!formErrors.amount}
+            aria-describedby={formErrors.amount ? "pay-err-amount" : undefined}
+            autoFocus
+          />
+          <FieldErr id="pay-err-amount" msg={formErrors.amount} />
+        </div>
 
-  const activeTotalPaid = activePayments.reduce(
-    (sum, p) => sum + Number(p.amount || 0), 0
-  );
-  const activeBalance = Math.max(EXPECTED_AMOUNT - activeTotalPaid, 0);
-  const activeStatus  = contributionMap[activeClassmate?.id]?.payment_status || "UNPAID";
+        <div className="admin-form-grid">
+          <div>
+            <label htmlFor="pay-method">Payment Method</label>
+            <select id="pay-method" name="payment_method" value={form.payment_method} onChange={handleChange}>
+              {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="pay-date">
+              Date <span aria-hidden="true" style={{ color: "#d93025" }}>*</span>
+            </label>
+            <input
+              id="pay-date"
+              type="date"
+              name="payment_date"
+              value={form.payment_date}
+              onChange={handleChange}
+              aria-required="true"
+              aria-invalid={!!formErrors.payment_date}
+              aria-describedby={formErrors.payment_date ? "pay-err-date" : undefined}
+            />
+            <FieldErr id="pay-err-date" msg={formErrors.payment_date} />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="pay-ref">Transaction / MoMo Reference</label>
+          <input
+            id="pay-ref"
+            type="text"
+            name="transaction_reference"
+            value={form.transaction_reference}
+            onChange={handleChange}
+            placeholder="Optional — e.g. 123456789"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="pay-notes">Notes</label>
+          <textarea
+            id="pay-notes"
+            name="notes"
+            value={form.notes}
+            onChange={handleChange}
+            placeholder="Optional notes…"
+            rows="2"
+          />
+        </div>
+      </>
+    );
+  }
 
   return (
     <div>
-
-      {/* ── PAGE HEADER ── */}
+      {/* PAGE HEADER */}
       <div className="page-header">
         <div>
           <p className="page-eyebrow">FINANCIAL MANAGEMENT</p>
           <h1>Contributions</h1>
           <p>
-            Track GH₵500 reunion contributions per classmate.
-            Record installment payments and view each member's balance.
+            Track reunion contributions per classmate. Record payments,
+            adjust expected amounts and manage all financial records.
           </p>
         </div>
+        <button className="secondary-button" onClick={loadData} aria-label="Refresh data">
+          <span aria-hidden="true">↻</span> Refresh
+        </button>
       </div>
 
-      {message && (
-        <div className="admin-success-message">{message}</div>
-      )}
-      {error && (
-        <div className="admin-error-message">{error}</div>
-      )}
-
-      {/* ── OVERALL SUMMARY ── */}
-      <div className="contrib-summary-strip">
-
-        <div className="contrib-summary-item">
-          <span>Total Expected</span>
-          <strong>{formatCurrency(stats.totalExpected)}</strong>
-        </div>
-
-        <div className="contrib-summary-item contrib-summary-highlight">
-          <span>Total Collected</span>
-          <strong>{formatCurrency(stats.totalCollected)}</strong>
-        </div>
-
-        <div className="contrib-summary-item">
-          <span>Outstanding</span>
-          <strong>{formatCurrency(stats.outstanding)}</strong>
-        </div>
-
-        <div className="contrib-summary-item">
-          <span>Progress</span>
-          <strong>{stats.progress}%</strong>
-          <div className="contrib-progress-bar">
-            <div
-              className="contrib-progress-fill"
-              style={{ width: `${stats.progress}%` }}
-            />
+      {/* Global feedback */}
+      <div aria-live="polite" aria-atomic="true">
+        {message && (
+          <div className="admin-success-message" role="status">
+            <span aria-hidden="true">✓ </span>{message}
           </div>
-        </div>
-
-        <div className="contrib-summary-item">
-          <span>Fully Paid</span>
-          <strong>{stats.paid}</strong>
-        </div>
-
-        <div className="contrib-summary-item">
-          <span>Partial</span>
-          <strong>{stats.partial}</strong>
-        </div>
-
-        <div className="contrib-summary-item">
-          <span>Unpaid</span>
-          <strong>{stats.unpaid}</strong>
-        </div>
-
+        )}
+      </div>
+      <div aria-live="assertive">
+        {error && (
+          <div className="admin-error-message" role="alert">
+            <span aria-hidden="true">⚠ </span>{error}
+          </div>
+        )}
       </div>
 
-      {/* ── FILTERS ── */}
-      <div className="admin-toolbar">
+      {/* SUMMARY STRIP */}
+      <div className="contrib-summary-strip" role="list" aria-label="Contribution summary">
+        {[
+          { label: "Total Expected",  value: formatCurrency(stats.totalExpected) },
+          { label: "Total Collected", value: formatCurrency(stats.totalCollected), highlight: true },
+          { label: "Outstanding",     value: formatCurrency(stats.outstanding) },
+          { label: "Progress",        value: `${stats.progress}%` },
+          { label: "Fully Paid",      value: stats.paid },
+          { label: "Partial",         value: stats.partial },
+          { label: "Unpaid",          value: stats.unpaid },
+        ].map(({ label, value, highlight }) => (
+          <div
+            key={label}
+            role="listitem"
+            className={`contrib-summary-item${highlight ? " contrib-summary-highlight" : ""}`}
+            aria-label={`${label}: ${value}`}
+          >
+            <span>{label}</span>
+            <strong>{value}</strong>
+            {label === "Progress" && (
+              <div
+                className="contrib-progress-bar"
+                role="progressbar"
+                aria-valuenow={stats.progress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div className="contrib-progress-fill" style={{ width: `${stats.progress}%` }} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* FILTERS */}
+      <div className="admin-toolbar" role="search" aria-label="Filter contributions">
+        <label htmlFor="contrib-search" className="sr-only">Search members</label>
         <input
-          type="text"
-          placeholder="Search name, class ID, phone..."
+          id="contrib-search"
+          type="search"
+          placeholder="Search name, class ID, phone…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-controls="contrib-table"
         />
-
+        <label htmlFor="contrib-status" className="sr-only">Filter by status</label>
         <select
+          id="contrib-status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter by payment status"
         >
           <option value="ALL">All Members</option>
           <option value="PAID">Fully Paid</option>
           <option value="PARTIAL">Partial</option>
           <option value="UNPAID">Unpaid</option>
         </select>
-
-        <button className="secondary-button" onClick={loadData}>
-          ↻ Refresh
-        </button>
       </div>
 
-      {/* ── TABLE ── */}
+      {/* TABLE */}
       <div className="data-card">
         <div className="data-card-header">
           <div>
             <h2>Member Contributions</h2>
-            <p>{rows.length} members shown</p>
+            <p id="contrib-count" aria-live="polite">
+              {rows.length} member{rows.length !== 1 ? "s" : ""} shown
+            </p>
           </div>
         </div>
 
         <div className="table-scroll">
-          <table className="admin-table">
+          <table id="contrib-table" className="admin-table" aria-label="Member contribution records">
             <thead>
               <tr>
-                <th>Member</th>
-                <th>Class ID</th>
-                <th>Expected</th>
-                <th>Paid</th>
-                <th>Balance</th>
-                <th>Status</th>
-                <th>Payments</th>
-                <th>Actions</th>
+                <th scope="col">Member</th>
+                <th scope="col">Class ID</th>
+                <th scope="col">Expected</th>
+                <th scope="col">Paid</th>
+                <th scope="col">Balance</th>
+                <th scope="col">Status</th>
+                <th scope="col">Payments</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
-
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="admin-empty-table">
-                    No members found.
+                  <td colSpan="8" className="admin-empty-table" role="status">
+                    No members match your current filter.
                   </td>
                 </tr>
               ) : (
-                rows.map(({ cm, memberPayments, totalPaid, balance, status }) => (
+                rows.map(({ cm, memberPayments, totalPaid, balance, status, expectedAmount }) => (
                   <tr key={cm.id}>
                     <td>
                       <strong>{cm.full_name}</strong>
-                      {cm.phone && (
-                        <small style={{ display: "block", color: "#999", marginTop: 3 }}>
-                          {cm.phone}
-                        </small>
-                      )}
+                      {cm.phone && <small className="admin-table-subtext">{cm.phone}</small>}
                     </td>
-
                     <td>
-                      <code style={{
-                        background: "#f4f0e6",
-                        padding: "4px 7px",
-                        borderRadius: 5,
-                        fontSize: 11,
-                      }}>
+                      <code style={{ background: "#f4f0e6", padding: "4px 7px", borderRadius: 5, fontSize: 11 }}>
                         {cm.class_id}
                       </code>
                     </td>
-
-                    <td>{formatCurrency(EXPECTED_AMOUNT)}</td>
-
+                    <td>
+                      <span style={{ fontSize: 13 }}>{formatCurrency(expectedAmount)}</span>
+                    </td>
                     <td>
                       <strong style={{ color: totalPaid > 0 ? "#198754" : "#aaa" }}>
                         {formatCurrency(totalPaid)}
                       </strong>
                     </td>
-
                     <td>
                       <strong style={{ color: balance > 0 ? "#b42318" : "#198754" }}>
                         {formatCurrency(balance)}
                       </strong>
                     </td>
-
-                    <td>
-                      <StatusBadge status={status} />
-                    </td>
-
+                    <td><StatusBadge status={status} /></td>
                     <td>
                       <span style={{ fontSize: 12, color: "#667085" }}>
                         {memberPayments.length} payment{memberPayments.length !== 1 ? "s" : ""}
                       </span>
                     </td>
-
                     <td>
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div className="reg-action-group">
                         <button
                           className="admin-table-action"
                           onClick={() => openAddPayment(cm)}
-                          title="Record a payment"
+                          aria-label={`Record payment for ${cm.full_name}`}
                         >
                           + Pay
                         </button>
-
                         {memberPayments.length > 0 && (
                           <button
                             className="admin-table-action"
                             onClick={() => openHistory(cm)}
-                            title="View payment history"
+                            aria-label={`View payment history for ${cm.full_name}`}
                             style={{ background: "#f0f4ff", color: "#3b5bdb" }}
                           >
                             History
                           </button>
                         )}
+                        <button
+                          className="admin-table-action"
+                          onClick={() => openEditExpected(cm)}
+                          aria-label={`Edit expected amount for ${cm.full_name}`}
+                          style={{ background: "#fffaeb", color: "#b54708" }}
+                        >
+                          Expected
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -511,244 +700,309 @@ export default function Contributions() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════
-          MODAL — ADD PAYMENT INSTALLMENT
-      ═══════════════════════════════════════════════════════ */}
+      {/* ═══ ADD PAYMENT MODAL ═══ */}
       {modal === "add" && activeClassmate && (
-        <div className="modal-background" onClick={closeModal}>
-          <div
-            className="details-modal"
-            style={{ maxWidth: 520 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button className="close-modal" onClick={closeModal}>×</button>
+        <div
+          className="modal-background"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-pay-heading"
+          onClick={closeModal}
+        >
+          <div className="details-modal" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+            <button className="close-modal" onClick={closeModal} aria-label="Close">
+              <span aria-hidden="true">×</span>
+            </button>
+            <p className="page-eyebrow" aria-hidden="true">RECORD PAYMENT</p>
+            <h2 id="add-pay-heading" tabIndex={-1} ref={modalHeadingRef} style={{ marginBottom: 4, outline: "none" }}>
+              {activeClassmate.full_name}
+            </h2>
 
-            <p className="page-eyebrow">RECORD PAYMENT</p>
-            <h2 style={{ marginBottom: 4 }}>{activeClassmate.full_name}</h2>
+            <MemberBalanceSummary
+              cm={activeClassmate}
+              totalPaid={activeTotalPaid}
+              balance={activeBalance}
+              expected={activeExpected}
+            />
 
-            {/* Mini balance summary */}
-            <div className="contrib-member-summary">
-              {(() => {
-                const mp = paymentsByClassmate[activeClassmate.id] || [];
-                const tp = mp.reduce((s, p) => s + Number(p.amount || 0), 0);
-                const bl = Math.max(EXPECTED_AMOUNT - tp, 0);
-                return (
-                  <>
-                    <div>
-                      <span>Paid so far</span>
-                      <strong style={{ color: "#198754" }}>{formatCurrency(tp)}</strong>
-                    </div>
-                    <div>
-                      <span>Balance</span>
-                      <strong style={{ color: bl > 0 ? "#b42318" : "#198754" }}>
-                        {formatCurrency(bl)}
-                      </strong>
-                    </div>
-                    <div>
-                      <span>Target</span>
-                      <strong>{formatCurrency(EXPECTED_AMOUNT)}</strong>
-                    </div>
-                  </>
-                );
-              })()}
+            <div aria-live="assertive">
+              {error && <div className="admin-error-message" role="alert"><span aria-hidden="true">⚠ </span>{error}</div>}
             </div>
 
-            {error && <div className="admin-error-message">{error}</div>}
-
-            <form className="admin-form" onSubmit={handleSubmit}>
-
-              <label>
-                Amount Paid (GH₵) *
-                <input
-                  type="number"
-                  name="amount"
-                  value={form.amount}
-                  onChange={handleChange}
-                  min="0.01"
-                  step="0.01"
-                  placeholder="e.g. 200.00"
-                  required
-                  autoFocus
-                />
-              </label>
-
-              <div className="admin-form-grid">
-                <label>
-                  Payment Method
-                  <select
-                    name="payment_method"
-                    value={form.payment_method}
-                    onChange={handleChange}
-                  >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Payment Date
-                  <input
-                    type="date"
-                    name="payment_date"
-                    value={form.payment_date}
-                    onChange={handleChange}
-                  />
-                </label>
-              </div>
-
-              <label>
-                Transaction / MoMo Reference
-                <input
-                  type="text"
-                  name="transaction_reference"
-                  value={form.transaction_reference}
-                  onChange={handleChange}
-                  placeholder="Optional — e.g. 123456789"
-                />
-              </label>
-
-              <label>
-                Notes
-                <textarea
-                  name="notes"
-                  value={form.notes}
-                  onChange={handleChange}
-                  placeholder="Optional notes..."
-                  rows="2"
-                />
-              </label>
-
+            <form className="admin-form" onSubmit={handleSubmitAdd} noValidate>
+              <PaymentFormFields />
               <div className="admin-modal-actions">
-                <button
-                  type="button"
-                  className="admin-secondary-button"
-                  onClick={closeModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="admin-primary-button"
-                  disabled={saving}
-                >
-                  {saving ? "Saving..." : "Save Payment"}
+                <button type="button" className="admin-secondary-button" onClick={closeModal}>Cancel</button>
+                <button type="submit" className="admin-primary-button" disabled={saving} aria-busy={saving}>
+                  {saving ? "Saving…" : "Save Payment"}
                 </button>
               </div>
-
             </form>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          MODAL — PAYMENT HISTORY
-      ═══════════════════════════════════════════════════════ */}
-      {modal === "history" && activeClassmate && (
-        <div className="modal-background" onClick={closeModal}>
-          <div
-            className="details-modal"
-            style={{ maxWidth: 620 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button className="close-modal" onClick={closeModal}>×</button>
+      {/* ═══ EDIT PAYMENT MODAL ═══ */}
+      {modal === "editPayment" && editingPayment && activeClassmate && (
+        <div
+          className="modal-background"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-pay-heading"
+          onClick={closeModal}
+        >
+          <div className="details-modal" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+            <button className="close-modal" onClick={closeModal} aria-label="Close">
+              <span aria-hidden="true">×</span>
+            </button>
+            <p className="page-eyebrow" aria-hidden="true">EDIT PAYMENT</p>
+            <h2 id="edit-pay-heading" tabIndex={-1} ref={modalHeadingRef} style={{ marginBottom: 4, outline: "none" }}>
+              Edit Payment — {activeClassmate.full_name}
+            </h2>
+            <p style={{ fontSize: 12, color: "#999", marginBottom: 16 }}>
+              Originally recorded: {formatCurrency(editingPayment.amount)} on {formatDate(editingPayment.payment_date)}
+            </p>
 
-            <p className="page-eyebrow">PAYMENT HISTORY</p>
-            <h2 style={{ marginBottom: 4 }}>{activeClassmate.full_name}</h2>
-            <small style={{ color: "#999" }}>{activeClassmate.class_id}</small>
-
-            {/* Member balance card */}
-            <div className="contrib-member-summary" style={{ marginTop: 16 }}>
-              <div>
-                <span>Total Paid</span>
-                <strong style={{ color: "#198754" }}>
-                  {formatCurrency(activeTotalPaid)}
-                </strong>
-              </div>
-              <div>
-                <span>Balance</span>
-                <strong style={{ color: activeBalance > 0 ? "#b42318" : "#198754" }}>
-                  {formatCurrency(activeBalance)}
-                </strong>
-              </div>
-              <div>
-                <span>Status</span>
-                <StatusBadge status={activeStatus} />
-              </div>
+            <div aria-live="assertive">
+              {error && <div className="admin-error-message" role="alert"><span aria-hidden="true">⚠ </span>{error}</div>}
             </div>
 
-            {error && <div className="admin-error-message" style={{ marginTop: 12 }}>{error}</div>}
+            <form className="admin-form" onSubmit={handleSubmitEditPayment} noValidate>
+              <PaymentFormFields />
+              <div className="admin-modal-actions">
+                <button type="button" className="admin-secondary-button" onClick={closeModal}>Cancel</button>
+                <button type="submit" className="admin-primary-button" disabled={saving} aria-busy={saving}>
+                  {saving ? "Saving…" : "Update Payment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
-            {/* Payments list */}
-            <div className="contrib-history-list">
+      {/* ═══ HISTORY MODAL ═══ */}
+      {modal === "history" && activeClassmate && (
+        <div
+          className="modal-background"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="history-heading"
+          onClick={closeModal}
+        >
+          <div className="details-modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
+            <button className="close-modal" onClick={closeModal} aria-label="Close history">
+              <span aria-hidden="true">×</span>
+            </button>
+            <p className="page-eyebrow" aria-hidden="true">PAYMENT HISTORY</p>
+            <h2 id="history-heading" tabIndex={-1} ref={modalHeadingRef} style={{ marginBottom: 4, outline: "none" }}>
+              {activeClassmate.full_name}
+            </h2>
+            <small style={{ color: "#999" }}>{activeClassmate.class_id}</small>
+
+            <MemberBalanceSummary
+              cm={activeClassmate}
+              totalPaid={activeTotalPaid}
+              balance={activeBalance}
+              expected={activeExpected}
+              status={activeStatus}
+              style={{ marginTop: 16 }}
+            />
+
+            <div aria-live="assertive">
+              {error && <div className="admin-error-message" role="alert" style={{ marginTop: 12 }}><span aria-hidden="true">⚠ </span>{error}</div>}
+            </div>
+            <div aria-live="polite">
+              {message && <div className="admin-success-message" role="status" style={{ marginTop: 12 }}><span aria-hidden="true">✓ </span>{message}</div>}
+            </div>
+
+            {/* Danger zone — delete entire contribution record */}
+            <div className="contrib-danger-zone">
+              <div>
+                <strong>Danger Zone</strong>
+                <p>
+                  Delete this classmate's entire contribution record and all
+                  associated payments. This cannot be undone.
+                </p>
+              </div>
+              <button
+                className="admin-danger-button"
+                onClick={() => handleDeleteContribution(activeClassmate)}
+                disabled={saving}
+                aria-label={`Delete all contribution data for ${activeClassmate.full_name}`}
+              >
+                Delete All Records
+              </button>
+            </div>
+
+            {/* Payment list */}
+            <div
+              className="contrib-history-list"
+              role="list"
+              aria-label={`Payment history for ${activeClassmate.full_name}`}
+            >
               {activePayments.length === 0 ? (
-                <p style={{ color: "#aaa", textAlign: "center", padding: "30px 0" }}>
+                <p role="status" style={{ color: "#aaa", textAlign: "center", padding: "30px 0" }}>
                   No payments recorded yet.
                 </p>
               ) : (
                 activePayments.map((p) => (
-                  <div key={p.id} className="contrib-history-item">
+                  <div
+                    key={p.id}
+                    className="contrib-history-item"
+                    role="listitem"
+                    aria-label={`${formatCurrency(p.amount)} via ${p.payment_method} on ${formatDate(p.payment_date)}`}
+                  >
                     <div className="contrib-history-left">
                       <strong>{formatCurrency(p.amount)}</strong>
                       <span>{p.payment_method}</span>
-                      {p.transaction_reference && (
-                        <small>Ref: {p.transaction_reference}</small>
-                      )}
+                      {p.transaction_reference && <small>Ref: {p.transaction_reference}</small>}
                       {p.notes && <small>{p.notes}</small>}
                     </div>
 
                     <div className="contrib-history-right">
                       <span>{formatDate(p.payment_date)}</span>
-                      {p.recorded_by && (
-                        <small>by {p.recorded_by}</small>
-                      )}
+                      {p.recorded_by && <small>by {p.recorded_by}</small>}
 
-                      {deletingPayment?.id === p.id ? (
-                        <div className="contrib-delete-confirm">
-                          <span>Delete?</span>
-                          <button
-                            onClick={() => handleDeletePayment(p)}
-                            disabled={saving}
-                          >
-                            Yes
-                          </button>
-                          <button onClick={() => setDeletingPayment(null)}>
-                            No
-                          </button>
-                        </div>
-                      ) : (
+                      <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
+                        {/* Edit payment button */}
                         <button
-                          className="contrib-delete-btn"
-                          onClick={() => setDeletingPayment(p)}
-                          title="Delete this payment"
+                          className="admin-table-action"
+                          style={{ background: "#f0f4ff", color: "#3b5bdb", fontSize: 11, padding: "3px 8px" }}
+                          onClick={() => startEditPayment(p)}
+                          aria-label={`Edit payment of ${formatCurrency(p.amount)}`}
                         >
-                          ✕
+                          Edit
                         </button>
-                      )}
+
+                        {deletingPayment?.id === p.id ? (
+                          <DeleteConfirm
+                            payment={p}
+                            onConfirm={handleDeletePayment}
+                            onCancel={() => setDeletingPayment(null)}
+                            saving={saving}
+                          />
+                        ) : (
+                          <button
+                            className="contrib-delete-btn"
+                            onClick={() => setDeletingPayment(p)}
+                            aria-label={`Delete payment of ${formatCurrency(p.amount)} on ${formatDate(p.payment_date)}`}
+                          >
+                            <span aria-hidden="true">✕</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
               )}
             </div>
 
-            {/* Add another payment from history modal */}
             <div style={{ marginTop: 20, textAlign: "right" }}>
               <button
                 className="admin-primary-button"
-                onClick={() => {
-                  closeModal();
-                  setTimeout(() => openAddPayment(activeClassmate), 50);
-                }}
+                onClick={() => { closeModal(); setTimeout(() => openAddPayment(activeClassmate), 50); }}
+                aria-label={`Add another payment for ${activeClassmate.full_name}`}
               >
                 + Add Payment
               </button>
             </div>
-
           </div>
         </div>
       )}
 
+      {/* ═══ EDIT EXPECTED AMOUNT MODAL ═══ */}
+      {modal === "editExpected" && activeClassmate && (
+        <div
+          className="modal-background"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="expected-heading"
+          onClick={closeModal}
+        >
+          <div className="details-modal" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+            <button className="close-modal" onClick={closeModal} aria-label="Close">
+              <span aria-hidden="true">×</span>
+            </button>
+            <p className="page-eyebrow" aria-hidden="true">EDIT EXPECTED CONTRIBUTION</p>
+            <h2 id="expected-heading" tabIndex={-1} ref={modalHeadingRef} style={{ marginBottom: 6, outline: "none" }}>
+              {activeClassmate.full_name}
+            </h2>
+            <p style={{ color: "#666", fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
+              The default expected contribution is {formatCurrency(DEFAULT_EXPECTED)}.
+              You can override this for individual classmates — for example, if a different
+              amount was agreed upon.
+            </p>
+
+            <div aria-live="assertive">
+              {expectedFormError && (
+                <div className="admin-error-message" role="alert">
+                  <span aria-hidden="true">⚠ </span>{expectedFormError}
+                </div>
+              )}
+            </div>
+
+            <form className="admin-form" onSubmit={handleSaveExpected} noValidate>
+              <div>
+                <label htmlFor="expected-amount">
+                  Expected Amount (GH₵) <span aria-hidden="true" style={{ color: "#d93025" }}>*</span>
+                </label>
+                <input
+                  id="expected-amount"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={expectedForm.amount}
+                  onChange={(e) => {
+                    setExpectedForm({ amount: e.target.value });
+                    setExpectedFormError("");
+                  }}
+                  required
+                  aria-required="true"
+                  aria-invalid={!!expectedFormError}
+                  autoFocus
+                />
+                <p style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
+                  Current default: {formatCurrency(DEFAULT_EXPECTED)} per classmate.
+                </p>
+              </div>
+
+              <div className="admin-modal-actions">
+                <button type="button" className="admin-secondary-button" onClick={closeModal}>Cancel</button>
+                <button type="submit" className="admin-primary-button" disabled={saving} aria-busy={saving}>
+                  {saving ? "Saving…" : "Save Expected Amount"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+// ── Shared balance summary bar ────────────────────────────────
+function MemberBalanceSummary({ totalPaid, balance, expected, status, style }) {
+  return (
+    <div className="contrib-member-summary" style={style} aria-label="Current payment summary">
+      <div aria-label={`Paid so far: ${formatCurrency(totalPaid)}`}>
+        <span>Paid</span>
+        <strong style={{ color: "#198754" }}>{formatCurrency(totalPaid)}</strong>
+      </div>
+      <div aria-label={`Balance: ${formatCurrency(balance)}`}>
+        <span>Balance</span>
+        <strong style={{ color: balance > 0 ? "#b42318" : "#198754" }}>{formatCurrency(balance)}</strong>
+      </div>
+      <div aria-label={`Expected: ${formatCurrency(expected)}`}>
+        <span>Expected</span>
+        <strong>{formatCurrency(expected)}</strong>
+      </div>
+      {status && (
+        <div>
+          <span>Status</span>
+          <StatusBadge status={status} />
+        </div>
+      )}
     </div>
   );
 }

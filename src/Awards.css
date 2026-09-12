@@ -680,3 +680,231 @@
     font-size: 48px;
   }
 }
+
+/* ── HCI / Accessibility additions ───────────────────────── */
+
+/* Screen-reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Unified feedback banner (replaces awards-success / awards-error) */
+.awards-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin: 18px 0;
+  line-height: 1.5;
+  outline: none; /* receives programmatic focus */
+}
+
+.awards-feedback--success {
+  background: #ecfdf3;
+  border: 1px solid #a7e3c1;
+  color: #126b3c;
+}
+
+.awards-feedback--error {
+  background: #fff1f2;
+  border-left: 4px solid #e02d3c;
+  border-top: 1px solid #fecdd3;
+  border-right: 1px solid #fecdd3;
+  border-bottom: 1px solid #fecdd3;
+  color: #a0182d;
+}
+
+/* Field hint */
+.awards-field-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #888;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+/* Form field wrapper for label + input + hint */
+.awards-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.awards-form-field label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #333;
+}
+
+.awards-form-field input,
+.awards-form-field textarea {
+  padding: 13px 14px;
+  border: 1.5px solid #d7d7d7;
+  border-radius: 9px;
+  background: #fafafa;
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.awards-form-field input:focus,
+.awards-form-field textarea:focus {
+  border-color: #b28a21;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(178, 138, 33, 0.12);
+}
+
+.awards-form-field textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Focus-visible on all interactive awards elements */
+.awards-primary-button:focus-visible,
+.awards-vote-button:focus-visible,
+.awards-outline-button:focus-visible,
+.awards-back-btn:focus-visible,
+.awards-back-link:focus-visible,
+.public-award-card:focus-visible {
+  outline: 3px solid #b28a21;
+  outline-offset: 3px;
+}
+
+/* Closed card — visually dimmed, pointer blocked */
+.public-award-card--closed {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.public-award-card--closed:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #e4dfd3;
+}
+
+/* Spinner */
+.awards-spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: awards-spin 0.7s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.awards-spinner--dark {
+  border-color: rgba(0, 0, 0, 0.12);
+  border-top-color: #b28a21;
+}
+
+@keyframes awards-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Loading state with spinner */
+.awards-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  color: #999;
+  padding: 40px 0;
+  justify-content: center;
+}
+
+/* Voted banner */
+.awards-voted-banner {
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: #ecfdf3;
+  border: 1px solid #a7e3c1;
+  color: #126b3c;
+  font-size: 16px;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+/* ── Vote Confirmation Dialog ─────────────────────────────── */
+.vote-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.vote-confirm-card {
+  width: min(460px, 100%);
+  background: white;
+  border-radius: 18px;
+  padding: 35px 30px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.vote-confirm-card h3 {
+  font-family: Georgia, serif;
+  font-size: 22px;
+  margin: 0 0 12px;
+  color: #171717;
+}
+
+.vote-confirm-card p {
+  color: #555;
+  line-height: 1.7;
+  margin: 0 0 24px;
+  font-size: 14px;
+}
+
+.vote-confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.vote-confirm-actions .awards-primary-button,
+.vote-confirm-actions .awards-outline-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .awards-spinner {
+    animation: none;
+    opacity: 0.5;
+  }
+
+  .public-award-card {
+    transition: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .vote-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .vote-confirm-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}

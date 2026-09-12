@@ -253,9 +253,14 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="dashboard-page">
-        <div className="dashboard-loading">
-          <div className="dashboard-spinner"></div>
-          <h2>Loading Dashboard...</h2>
+        <div
+          className="dashboard-loading"
+          role="status"
+          aria-live="polite"
+          aria-label="Loading dashboard data"
+        >
+          <div className="dashboard-spinner" aria-hidden="true"></div>
+          <h2>Loading Dashboard…</h2>
           <p>Connecting to the reunion database.</p>
         </div>
       </div>
@@ -268,12 +273,10 @@ export default function Dashboard() {
       {/* HEADER */}
       <div className="dashboard-header">
         <div>
-          <span className="dashboard-eyebrow">
+          <span className="dashboard-eyebrow" aria-hidden="true">
             CLASS OF 2021 • 5TH ANNIVERSARY
           </span>
-
           <h1>Reunion Dashboard</h1>
-
           <p>
             Monitor registrations, attendance, T-shirts,
             contributions and reunion activities from one place.
@@ -284,31 +287,34 @@ export default function Dashboard() {
           className="refresh-button"
           onClick={loadDashboard}
           disabled={loading}
+          aria-label="Refresh dashboard data"
+          aria-busy={loading}
         >
-          ↻ Refresh
+          <span aria-hidden="true">↻</span> Refresh
         </button>
       </div>
 
       {/* ERROR */}
       {error && (
-        <div className="dashboard-alert">
-          <strong>Unable to load some data.</strong>
-          <span>{error}</span>
-
-          <button onClick={loadDashboard}>
+        <div
+          className="dashboard-alert"
+          role="alert"
+          aria-live="assertive"
+        >
+          <div>
+            <strong>Unable to load some data.</strong>
+            <span>{error}</span>
+          </div>
+          <button onClick={loadDashboard} aria-label="Retry loading dashboard">
             Try Again
           </button>
         </div>
       )}
 
       {/* LIVE STATUS */}
-      <div className="live-status">
-        <span className="live-dot"></span>
-
-        <span>
-          Live database data
-        </span>
-
+      <div className="live-status" aria-live="polite" aria-atomic="true">
+        <span className="live-dot" aria-hidden="true"></span>
+        <span>Live database data</span>
         {lastUpdated && (
           <span className="last-updated">
             Last updated{" "}
@@ -321,21 +327,21 @@ export default function Dashboard() {
       </div>
 
       {/* MAIN STATISTICS */}
-      <section className="stats-grid">
-
-        <div className="stat-card stat-primary">
-          <div className="stat-icon">👥</div>
-
+      <section
+        className="stats-grid"
+        aria-label="Main registration statistics"
+      >
+        <div className="stat-card stat-primary" role="figure" aria-label={`Total registered: ${statistics.total} classmates`}>
+          <div className="stat-icon" aria-hidden="true">👥</div>
           <div className="stat-content">
             <span>Total Registered</span>
-            <strong>{statistics.total}</strong>
+            <strong aria-label={statistics.total}>{statistics.total}</strong>
             <small>Classmates</small>
           </div>
         </div>
 
-        <div className="stat-card stat-success">
-          <div className="stat-icon">✓</div>
-
+        <div className="stat-card stat-success" role="figure" aria-label={`Attending: ${statistics.attending}, ${attendancePercentage}% of registered`}>
+          <div className="stat-icon" aria-hidden="true">✓</div>
           <div className="stat-content">
             <span>Attending</span>
             <strong>{statistics.attending}</strong>
@@ -343,32 +349,30 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="stat-card stat-warning">
-          <div className="stat-icon">👤</div>
-
+        <div className="stat-card stat-warning" role="figure" aria-label={`Guests: ${statistics.totalGuests}, ${statistics.totalPeopleAttending} people expected total`}>
+          <div className="stat-icon" aria-hidden="true">👤</div>
           <div className="stat-content">
             <span>Guests</span>
             <strong>{statistics.totalGuests}</strong>
-            <small>
-              {statistics.totalPeopleAttending} people expected
-            </small>
+            <small>{statistics.totalPeopleAttending} people expected</small>
           </div>
         </div>
 
-        <div className="stat-card stat-danger">
-          <div className="stat-icon">×</div>
-
+        <div className="stat-card stat-danger" role="figure" aria-label={`Not attending: ${statistics.notAttending} classmates`}>
+          <div className="stat-icon" aria-hidden="true">×</div>
           <div className="stat-content">
             <span>Not Attending</span>
             <strong>{statistics.notAttending}</strong>
             <small>Classmates</small>
           </div>
         </div>
-
       </section>
 
       {/* SECONDARY STATISTICS */}
-      <section className="stats-grid secondary-stats">
+      <section
+        className="stats-grid secondary-stats"
+        aria-label="Financial and logistics statistics"
+      >
 
         <div className="stat-card">
           <div className="stat-icon">💰</div>
