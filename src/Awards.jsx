@@ -95,6 +95,13 @@ export default function AwardsPage() {
       }
 
       const verified = data[0];
+
+      // Guard: make sure the returned row has the expected shape
+      if (!verified.id || !verified.full_name) {
+        throw new Error(
+          "Verification returned incomplete data. Please contact the admin."
+        );
+      }
       setMember(verified);
 
       // Load this member's existing nominations and votes
