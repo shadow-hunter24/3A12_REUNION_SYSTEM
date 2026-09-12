@@ -1,3 +1,4 @@
+
 /**
  * notify-payment — Supabase Edge Function
  *
@@ -13,7 +14,7 @@
  *   SUPABASE_SERVICE_ROLE_KEY — auto-injected by Supabase
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface PaymentRow {
