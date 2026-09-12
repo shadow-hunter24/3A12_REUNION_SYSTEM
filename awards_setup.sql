@@ -112,6 +112,9 @@ CREATE POLICY "Auth manage votes"
 
 -- ── 6. SAFE RPC: verify_reunion_member ───────────────────────
 -- Returns only id, full_name, class_id — no private fields
+-- DROP first in case the old version has a different return type
+
+DROP FUNCTION IF EXISTS verify_reunion_member(text, text);
 
 CREATE OR REPLACE FUNCTION verify_reunion_member(
   p_class_id text,
