@@ -1,181 +1,433 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import "./AdminPages.css";
 
-const SIZES = ["S", "M", "L", "XL", "XXL", "XXXL"];
+const shirtSizes = ["S", "M", "L", "XL", "XXL", "XXXL"];
 
 export default function Tshirts() {
   const [classmates, setClassmates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
 
-  useEffect(() => {
-    loadOrders();
+  const [search, setSearch] = useState("");
+  const [sizeFilter, setSizeFilter] = useState("ALL");
+
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from("classmates")
+        .select(
+          "id, class_id, full_name, phone, email, tshirt_size, tshirt_quantity"
+        )
+        .order("full_name", { ascending: true });
+
+      if (fetchError) throw fetchError;
+
+      setClassmates(data || []);
+    } catch (err) {
+      console.error(err);
+      setError(
+        err.message || "Unable to load T-shirt records."
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  async function loadOrders() {
-    setLoading(true);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-    const { data, error } = await supabase
-      .from("classmates")
-      .select(
-        "full_name,class_id,phone,tshirt_size,tshirt_quantity"
-      );
+  const filteredClassmates = useMemo(() => {
+    const searchText = search.toLowerCase().trim();
 
-    if (error) {
-      console.error(error);
-    }
+    return classmates.filter((classmate) => {
+      const matchesSearch =
+        !searchText ||
+        classmate.full_name
+          ?.toLowerCase()
+          .includes(searchText) ||
+        classmate.class_id
+          ?.toLowerCase()
+          .includes(searchText) ||
+        classmate.phone
+          ?.toLowerCase()
+          .includes(searchText) ||
+        classmate.email
+          ?.toLowerCase()
+          .includes(searchText);
 
-    setClassmates(data || []);
-    setLoading(false);
-  }
+      const size = classmate.tshirt_size || "";
 
-  const orders = classmates.filter(
-    (person) =>
-      person.tshirt_size &&
-      Number(person.tshirt_quantity) > 0
-  );
+      const matchesSize =
+        sizeFilter === "ALL" || size === sizeFilter;
 
-  const total = useMemo(
-    () =>
-      orders.reduce(
-        (sum, person) =>
-          sum + Number(person.tshirt_quantity || 0),
-        0
-      ),
-    [orders]
-  );
+      return matchesSearch && matchesSize;
+    });
+  }, [classmates, search, sizeFilter]);
 
-  // Quantity per size across all orders
-  const quantityBySize = useMemo(() => {
-    const map = {};
+  const stats = useMemo(() => {
+    const result = {
+      total: 0,
+      people: 0,
+      unselected: 0,
+      sizes: {},
+    };
 
-    SIZES.forEach((size) => {
-      map[size] = orders
-        .filter((person) => person.tshirt_size === size)
-        .reduce(
-          (sum, person) =>
-            sum + Number(person.tshirt_quantity || 0),
-          0
-        );
+    shirtSizes.forEach((size) => {
+      result.sizes[size] = 0;
     });
 
-    return map;
-  }, [orders]);
+    classmates.forEach((classmate) => {
+      const quantity = Number(
+        classmate.tshirt_quantity || 0
+      );
+
+      result.total += quantity;
+
+      if (quantity > 0) {
+        result.people++;
+      } else {
+        result.unselected++;
+      }
+
+      if (classmate.tshirt_size && quantity > 0) {
+        if (!result.sizes[classmate.tshirt_size]) {
+          result.sizes[classmate.tshirt_size] = 0;
+        }
+
+        result.sizes[classmate.tshirt_size] += quantity;
+      }
+    });
+
+    return result;
+  }, [classmates]);
+
+  async function updateTshirt(id, size, quantity) {
+    setSavingId(id);
+    setMessage("");
+    setError("");
+
+    try {
+      const cleanQuantity = Math.max(
+        0,
+        Number(quantity || 0)
+      );
+
+      const cleanSize =
+        cleanQuantity > 0 ? size : null;
+
+      const { error: updateError } = await supabase
+        .from("classmates")
+        .update({
+          tshirt_size: cleanSize,
+          tshirt_quantity: cleanQuantity,
+        })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      setClassmates((previous) =>
+        previous.map((classmate) =>
+          classmate.id === id
+            ? {
+                ...classmate,
+                tshirt_size: cleanSize,
+                tshirt_quantity: cleanQuantity,
+              }
+            : classmate
+        )
+      );
+
+      setMessage("T-shirt information updated successfully.");
+    } catch (err) {
+      console.error(err);
+      setError(
+        err.message || "Unable to update T-shirt information."
+      );
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="admin-page">
+        <div className="admin-loading">
+          Loading T-shirt records...
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
+    <div className="admin-page">
 
-      <div className="page-header">
-
+      <div className="admin-page-header">
         <div>
-          <p className="page-eyebrow">MERCHANDISE</p>
+          <span className="admin-eyebrow">
+            MERCHANDISE MANAGEMENT
+          </span>
+
           <h1>T-Shirts</h1>
-          <p>Manage reunion T-shirt orders.</p>
+
+          <p>
+            Manage reunion T-shirt sizes and quantities
+            ordered by classmates.
+          </p>
         </div>
 
         <button
-          className="secondary-button"
-          onClick={loadOrders}
-          disabled={loading}
+          className="admin-secondary-button"
+          onClick={loadData}
         >
           ↻ Refresh
         </button>
+      </div>
+
+      {message && (
+        <div className="admin-success-message">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="admin-error-message">
+          {error}
+        </div>
+      )}
+
+      {/* SUMMARY */}
+
+      <div className="admin-summary-grid">
+
+        <div className="admin-summary-card">
+          <span>Total T-Shirts</span>
+          <strong>{stats.total}</strong>
+        </div>
+
+        <div className="admin-summary-card">
+          <span>Classmates Ordering</span>
+          <strong>{stats.people}</strong>
+        </div>
+
+        <div className="admin-summary-card">
+          <span>Not Selected</span>
+          <strong>{stats.unselected}</strong>
+        </div>
+
+        <div className="admin-summary-card">
+          <span>Sizes Recorded</span>
+          <strong>
+            {
+              Object.values(stats.sizes).filter(
+                (quantity) => quantity > 0
+              ).length
+            }
+          </strong>
+        </div>
 
       </div>
 
-      {/* SUMMARY — all 6 sizes + total */}
-      <div className="summary-cards tshirt-summary-cards">
+      {/* SIZE SUMMARY */}
 
-        <div>
-          <span>Total Shirts</span>
-          <strong>{total}</strong>
-        </div>
+      <div className="admin-feature-grid">
 
-        {SIZES.map((size) => (
-          <div key={size}>
-            <span>Size {size}</span>
-            <strong>{quantityBySize[size]}</strong>
+        {shirtSizes.map((size) => (
+          <div
+            className="admin-feature-card"
+            key={size}
+          >
+            <span className="admin-eyebrow">
+              SIZE
+            </span>
+
+            <h3>{size}</h3>
+
+            <p>
+              {stats.sizes[size] || 0} shirt
+              {(stats.sizes[size] || 0) !== 1
+                ? "s"
+                : ""}
+            </p>
           </div>
         ))}
 
       </div>
 
-      <div className="data-card">
+      {/* FILTERS */}
 
-        <div className="data-card-header">
-          <div>
-            <h2>T-Shirt Orders</h2>
-            <p>{orders.length} classmates ordered shirts.</p>
-          </div>
-        </div>
+      <div className="admin-toolbar">
 
-        {loading ? (
+        <input
+          type="text"
+          placeholder="Search name, class ID, phone or email..."
+          value={search}
+          onChange={(event) =>
+            setSearch(event.target.value)
+          }
+        />
 
-          <div className="empty-message">
-            Loading orders...
-          </div>
+        <select
+          value={sizeFilter}
+          onChange={(event) =>
+            setSizeFilter(event.target.value)
+          }
+        >
+          <option value="ALL">All Sizes</option>
 
-        ) : orders.length === 0 ? (
+          {shirtSizes.map((size) => (
+            <option value={size} key={size}>
+              {size}
+            </option>
+          ))}
+        </select>
 
-          <div className="empty-message">
-            <div className="empty-icon">👕</div>
-            <strong>No T-shirt orders yet</strong>
-            <p>
-              Orders will appear here once classmates
-              submit their registrations.
-            </p>
-          </div>
+      </div>
 
-        ) : (
+      {/* TABLE */}
 
-          <div className="table-scroll">
+      <div className="admin-table-card">
 
-            <table className="admin-table">
+        <div className="admin-table-wrapper">
 
-              <thead>
+          <table className="admin-table">
+
+            <thead>
+              <tr>
+                <th>Classmate</th>
+                <th>Class ID</th>
+                <th>Phone</th>
+                <th>Size</th>
+                <th>Quantity</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+
+              {filteredClassmates.length === 0 ? (
                 <tr>
-                  <th>Classmate</th>
-                  <th>Class ID</th>
-                  <th>Phone</th>
-                  <th>Size</th>
-                  <th>Quantity</th>
+                  <td
+                    colSpan="6"
+                    className="admin-empty-table"
+                  >
+                    No T-shirt records found.
+                  </td>
                 </tr>
-              </thead>
+              ) : (
+                filteredClassmates.map((classmate) => (
 
-              <tbody>
+                  <TshirtRow
+                    key={classmate.id}
+                    classmate={classmate}
+                    saving={savingId === classmate.id}
+                    onSave={updateTshirt}
+                  />
 
-                {orders.map((person) => (
-                  <tr key={person.class_id}>
+                ))
+              )}
 
-                    <td>{person.full_name}</td>
+            </tbody>
 
-                    <td>
-                      <code>{person.class_id}</code>
-                    </td>
+          </table>
 
-                    <td>{person.phone}</td>
-
-                    <td>
-                      <span className="badge">
-                        {person.tshirt_size}
-                      </span>
-                    </td>
-
-                    <td>{person.tshirt_quantity}</td>
-
-                  </tr>
-                ))}
-
-              </tbody>
-
-            </table>
-
-          </div>
-
-        )}
+        </div>
 
       </div>
 
     </div>
+  );
+}
+
+function TshirtRow({
+  classmate,
+  saving,
+  onSave,
+}) {
+  const [size, setSize] = useState(
+    classmate.tshirt_size || ""
+  );
+
+  const [quantity, setQuantity] = useState(
+    classmate.tshirt_quantity || 0
+  );
+
+  return (
+    <tr>
+
+      <td>
+        <strong>
+          {classmate.full_name}
+        </strong>
+
+        {classmate.email && (
+          <small className="admin-table-subtext">
+            {classmate.email}
+          </small>
+        )}
+      </td>
+
+      <td>{classmate.class_id}</td>
+
+      <td>{classmate.phone}</td>
+
+      <td>
+        <select
+          value={size}
+          onChange={(event) =>
+            setSize(event.target.value)
+          }
+        >
+          <option value="">
+            Select
+          </option>
+
+          {shirtSizes.map((shirtSize) => (
+            <option
+              value={shirtSize}
+              key={shirtSize}
+            >
+              {shirtSize}
+            </option>
+          ))}
+        </select>
+      </td>
+
+      <td>
+        <input
+          type="number"
+          min="0"
+          value={quantity}
+          onChange={(event) =>
+            setQuantity(event.target.value)
+          }
+          style={{ width: "80px" }}
+        />
+      </td>
+
+      <td>
+        <button
+          className="admin-table-action"
+          disabled={saving}
+          onClick={() =>
+            onSave(
+              classmate.id,
+              size,
+              quantity
+            )
+          }
+        >
+          {saving ? "Saving..." : "Save"}
+        </button>
+      </td>
+
+    </tr>
   );
 }
