@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import {
   Trophy, Briefcase, Heart, Laugh, Shirt, Star, Target,
-  TrendingUp, AlertTriangle, Check, Vote, X, Info,
+  TrendingUp, AlertTriangle, Check, Vote, X, Info, Medal,
 } from "lucide-react";
 import "./Awards.css";
 
@@ -112,6 +112,11 @@ export default function AwardsPage() {
   const [myNominations, setMyNominations] = useState({});
   const [myVotes, setMyVotes]             = useState({});
 
+  // ── Results: map of category_id → sorted finalist array with vote counts
+  // Populated lazily when member views a closed category result
+  const [results, setResults] = useState({}); // { [catId]: [{classmate_id,full_name,class_id,vote_count}] }
+  const [resultsLoading, setResultsLoading] = useState({}); // { [catId]: bool }
+
   // ── UI state
   const [step, setStep]                     = useState(STEP.VERIFY);
   const [activeCategory, setActiveCategory] = useState(null);
@@ -152,7 +157,20 @@ export default function AwardsPage() {
       .from("award_categories")
       .select("*")
       .order("created_at", { ascending: true });
-    if (!e) setCategories(data || []);
+    if (!e) {
+      const cats = data || [];
+      setCategories(cats);
+      // Pre-load results for every closed category (voting_open=false, has finalists)
+      const closed = cats.filter((c) => !c.voting_open && !c.nomination_open);
+      closed.forEach((c) => loadCategoryResults(c.id));
+    }
+  }
+
+  async function loadCategoryResults(categoryId) {
+    setResultsLoading((prev) => ({ ...prev, [categoryId]: true }));
+    const { data } = await supabase.rpc("get_category_results", { p_category_id: categoryId });
+    setResults((prev) => ({ ...prev, [categoryId]: data || [] }));
+    setResultsLoading((prev) => ({ ...prev, [categoryId]: false }));
   }
 
   // ─── STEP 1: VERIFY ────────────────────────────────────────
@@ -553,6 +571,102 @@ export default function AwardsPage() {
             )}
           </>
         )}
+
+        {/* ── RESULTS (closed categories — revealed after voting closes) ── */}
+        {step === STEP.BROWSE && member && (() => {
+          const closedWithResults = categories.filter(
+            (c) => !c.voting_open && !c.nomination_open && (results[c.id]?.length > 0 || resultsLoading[c.id])
+          );
+          if (closedWithResults.length === 0) return null;
+          return (
+            <div className="results-section" aria-labelledby="results-heading">
+              <div className="awards-section-heading" style={{ marginTop: 56 }}>
+                <span className="awards-eyebrow" aria-hidden="true">FINAL RESULTS</span>
+                <h2 id="results-heading">Award Winners</h2>
+                <p>Voting has closed for these categories. Here are the final results.</p>
+              </div>
+              <div className="results-grid" role="list" aria-label="Award results">
+                {closedWithResults.map((cat) => {
+                  const catResults = results[cat.id] || [];
+                  const isLoading  = resultsLoading[cat.id];
+                  const winner     = catResults[0];
+                  const totalVotes = catResults.reduce((s, r) => s + Number(r.vote_count), 0);
+
+                  return (
+                    <div key={cat.id} className="result-card" role="listitem" aria-label={`Results for ${cat.name}`}>
+                      {/* Category header */}
+                      <div className="result-card-header">
+                        <span className="result-card-icon" aria-hidden="true">
+                          <CategoryIcon category={cat} size={22} />
+                        </span>
+                        <div>
+                          <p className="result-card-eyebrow">AWARD</p>
+                          <h3>{cat.name}</h3>
+                        </div>
+                      </div>
+
+                      {isLoading ? (
+                        <div className="awards-loading" role="status">
+                          <span className="awards-spinner awards-spinner--dark" aria-hidden="true" />
+                          Loading results…
+                        </div>
+                      ) : catResults.length === 0 ? (
+                        <p className="result-empty">No votes were cast for this category.</p>
+                      ) : (
+                        <>
+                          {/* Winner spotlight */}
+                          <div className="result-winner" aria-label={`Winner: ${winner.full_name}`}>
+                            <div className="result-winner-crown" aria-hidden="true">
+                              <Trophy size={28} />
+                            </div>
+                            <div className="result-winner-info">
+                              <p className="result-winner-label">WINNER</p>
+                              <p className="result-winner-name">{winner.full_name}</p>
+                              <code className="result-winner-id">{winner.class_id}</code>
+                            </div>
+                            <div className="result-winner-votes" aria-label={`${winner.vote_count} votes`}>
+                              <strong>{winner.vote_count}</strong>
+                              <span>vote{winner.vote_count !== 1 ? "s" : ""}</span>
+                            </div>
+                          </div>
+
+                          {/* Other finalists */}
+                          {catResults.length > 1 && (
+                            <div className="result-runners" aria-label="Other finalists">
+                              {catResults.slice(1).map((r, i) => {
+                                const pct = totalVotes > 0
+                                  ? Math.round((Number(r.vote_count) / totalVotes) * 100)
+                                  : 0;
+                                return (
+                                  <div key={r.classmate_id} className="result-runner-row">
+                                    <span className="result-runner-rank" aria-hidden="true">{i + 2}</span>
+                                    <div className="result-runner-info">
+                                      <span className="result-runner-name">{r.full_name}</span>
+                                      <div className="result-bar-track" aria-hidden="true">
+                                        <div className="result-bar-fill" style={{ width: `${pct}%` }} />
+                                      </div>
+                                    </div>
+                                    <span className="result-runner-votes" aria-label={`${r.vote_count} votes`}>
+                                      {r.vote_count}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <p className="result-total-votes">
+                            {totalVotes} total vote{totalVotes !== 1 ? "s" : ""} cast
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── NOMINATE ── */}
         {step === STEP.NOMINATE && activeCategory && (

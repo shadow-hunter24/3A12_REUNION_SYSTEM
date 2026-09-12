@@ -325,3 +325,54 @@ $$;
 --   4. Open voting — classmates vote via /awards
 --   5. Close voting and announce results
 -- =============================================================
+
+-- ── 12. PUBLIC RPC: get_category_results ─────────────────────
+-- Returns finalists with vote counts for a CLOSED category.
+-- Only works when voting_open = false — results are hidden
+-- while voting is still active.
+-- Safe for public/anon callers (SECURITY DEFINER bypasses RLS).
+
+DROP FUNCTION IF EXISTS get_category_results(uuid);
+
+CREATE OR REPLACE FUNCTION get_category_results(
+  p_category_id uuid
+)
+RETURNS TABLE (
+  classmate_id uuid,
+  full_name    text,
+  class_id     text,
+  vote_count   bigint
+)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_voting_open boolean;
+BEGIN
+  -- Only reveal results if voting is closed
+  SELECT voting_open INTO v_voting_open
+    FROM award_categories
+   WHERE id = p_category_id;
+
+  IF v_voting_open IS NULL THEN
+    RETURN; -- category not found
+  END IF;
+
+  IF v_voting_open THEN
+    RETURN; -- voting still open — reveal nothing
+  END IF;
+
+  RETURN QUERY
+    SELECT
+      af.classmate_id,
+      c.full_name,
+      c.class_id,
+      COUNT(av.id)::bigint AS vote_count
+    FROM award_finalists af
+    JOIN classmates c ON c.id = af.classmate_id
+    LEFT JOIN award_votes av
+      ON av.category_id = af.category_id
+     AND av.nominee_id  = af.classmate_id
+   WHERE af.category_id = p_category_id
+   GROUP BY af.classmate_id, c.full_name, c.class_id
+   ORDER BY vote_count DESC, c.full_name;
+END;
+$$;
