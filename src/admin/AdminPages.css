@@ -25,7 +25,9 @@
   margin-top: 8px;
 }
 
-.secondary-button {
+/* Scoped to admin pages only to avoid clashing with App.css .secondary-button */
+.admin-layout .secondary-button,
+.admin-content .secondary-button {
   padding: 13px 17px;
   border: 1px solid #ddd;
   background: white;
