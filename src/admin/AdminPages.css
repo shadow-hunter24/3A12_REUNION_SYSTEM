@@ -16,7 +16,7 @@
 
 .page-header h1 {
   font-family: "Playfair Display", serif;
-  font-size: 42px;
+  font-size: clamp(28px, 5vw, 42px);
   margin: 0;
 }
 
@@ -26,12 +26,14 @@
 }
 
 .secondary-button {
-  padding: 11px 17px;
+  padding: 13px 17px;
   border: 1px solid #ddd;
   background: white;
   border-radius: 9px;
   font-weight: 700;
   cursor: pointer;
+  min-height: 44px;
+  font-family: inherit;
 }
 
 .summary-cards {
@@ -60,11 +62,14 @@
   margin-top: 8px;
 }
 
+/* Ensure the data-card clips its content so table scroll stays contained */
 .data-card {
   background: white;
   border: 1px solid #e8e4db;
   border-radius: 17px;
   overflow: hidden;
+  /* Prevent the card from expanding wider than its parent */
+  min-width: 0;
 }
 
 .data-card-header {
@@ -102,6 +107,8 @@
 
 .table-scroll {
   overflow-x: auto;
+  /* Keeps the scroll contained within the card, not the whole page */
+  -webkit-overflow-scrolling: touch;
 }
 
 .admin-table {
@@ -277,12 +284,15 @@
   border: none;
   background: #f2f2f2;
 
-  width: 35px;
-  height: 35px;
+  /* 44×44 minimum tap target */
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
 
   font-size: 22px;
   cursor: pointer;
+  display: grid;
+  place-items: center;
 }
 
 .details-modal h2 {
@@ -381,6 +391,29 @@
   font-weight: 700;
 }
 
+/* T-shirt page: 7-column summary (Total + 6 sizes) that collapses gracefully */
+.tshirt-summary-cards {
+  grid-template-columns: repeat(7, 1fr);
+}
+
+@media (max-width: 1100px) {
+  .tshirt-summary-cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .tshirt-summary-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .tshirt-summary-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 900px) {
   .summary-cards {
     grid-template-columns: 1fr 1fr;
@@ -394,10 +427,6 @@
 @media (max-width: 600px) {
   .page-header {
     flex-direction: column;
-  }
-
-  .page-header h1 {
-    font-size: 34px;
   }
 
   .summary-cards {
@@ -419,6 +448,38 @@
 
   .checkin-placeholder {
     padding: 35px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+
+  /* Reduce modal padding on very small screens */
+  .details-modal {
+    padding: 20px;
+  }
+
+  .details-modal h2 {
+    font-size: 26px;
+    padding-right: 40px; /* space for close button */
+  }
+
+  /* Toolbar wraps cleanly */
+  .admin-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-toolbar input,
+  .admin-toolbar select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-form-grid {
+    grid-template-columns: 1fr;
   }
 }
 .admin-success-message {
@@ -529,6 +590,7 @@
 
 .admin-table-card {
   overflow: hidden;
+  min-width: 0;
   border: 1px solid #e7eaf0;
   border-radius: 14px;
   background: white;
@@ -536,12 +598,14 @@
 
 .admin-table-wrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
+/* Single consolidated admin-table definition */
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 950px;
+  min-width: 750px;
 }
 
 .admin-table th {
@@ -642,6 +706,11 @@
   color: #667085;
   font-size: 1.8rem;
   cursor: pointer;
+  /* Minimum 44×44 tap target */
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
 }
 
 .admin-form {
@@ -698,7 +767,7 @@
 
 @media (max-width: 600px) {
   .admin-summary-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
   .admin-form-grid {
@@ -711,5 +780,11 @@
 
   .admin-page-header .admin-primary-button {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-summary-grid {
+    grid-template-columns: 1fr;
   }
 }

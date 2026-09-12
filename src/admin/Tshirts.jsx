@@ -84,12 +84,7 @@ export default function Tshirts() {
       </div>
 
       {/* SUMMARY — all 6 sizes + total */}
-      <div
-        className="summary-cards"
-        style={{
-          gridTemplateColumns: "repeat(7, 1fr)",
-        }}
-      >
+      <div className="summary-cards tshirt-summary-cards">
 
         <div>
           <span>Total Shirts</span>

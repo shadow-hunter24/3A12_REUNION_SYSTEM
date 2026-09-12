@@ -82,7 +82,8 @@
   width: 100%;
   box-sizing: border-box;
 
-  padding: 12px 11px;
+  /* 44px minimum tap target */
+  padding: 14px 11px;
   margin-bottom: 4px;
 
   border-radius: 8px;
@@ -163,6 +164,11 @@
 
   font-size: 20px;
   cursor: pointer;
+  /* Minimum tap target */
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
 }
 
 .admin-content {
@@ -209,7 +215,11 @@
     color: white;
     font-size: 22px;
     cursor: pointer;
-    padding: 4px 8px;
+    /* 44×44 tap target */
+    min-width: 44px;
+    min-height: 44px;
+    display: grid;
+    place-items: center;
   }
 
   /* Sidebar slides in from left */

@@ -1,8 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import "./App.css";
-
-// Reunion date — update this when the date is confirmed
 const REUNION_DATE = new Date("2026-12-31T10:00:00");
 
 function useCountdown(target) {
@@ -39,6 +37,12 @@ function pad(n) {
 
 function App() {
   const countdown = useCountdown(REUNION_DATE);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Close mobile menu when navigating to a section
+  function handleNavClick() {
+    setMenuOpen(false);
+  }
 
   return (
     <div className="app">
@@ -60,7 +64,37 @@ function App() {
         <Link to="/register" className="nav-button">
           Register
         </Link>
+
+        {/* Hamburger — mobile only */}
+        <button
+          className="nav-hamburger"
+          onClick={() => setMenuOpen((prev) => !prev)}
+          aria-label="Toggle navigation menu"
+          aria-expanded={menuOpen}
+        >
+          {menuOpen ? "✕" : "☰"}
+        </button>
       </nav>
+
+      {/* Mobile menu overlay */}
+      {menuOpen && (
+        <div
+          className="mobile-nav-overlay"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <div className={`mobile-nav${menuOpen ? " mobile-nav-open" : ""}`}>
+        <a href="#home"      onClick={handleNavClick}>Home</a>
+        <a href="#about"     onClick={handleNavClick}>About</a>
+        <a href="#programme" onClick={handleNavClick}>Programme</a>
+        <a href="#memories"  onClick={handleNavClick}>Memories</a>
+        <a href="#contact"   onClick={handleNavClick}>Contact</a>
+        <Link to="/register" onClick={handleNavClick} className="mobile-nav-register">
+          Register for Reunion →
+        </Link>
+      </div>
 
       {/* Hero */}
       <section className="hero" id="home">

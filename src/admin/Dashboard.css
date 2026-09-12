@@ -155,11 +155,11 @@
 }
 
 .stat-card {
-  min-height: 130px;
+  min-height: 110px;
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 20px;
+  padding: 18px 20px;
   background: white;
   border: 1px solid #e7eaf0;
   border-radius: 16px;
@@ -695,17 +695,26 @@
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
+  /* Stack header + make refresh button full width earlier */
   .dashboard-header {
     flex-direction: column;
   }
 
   .refresh-button {
     width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 700px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .stats-grid {
-    grid-template-columns: 1fr;
+  /* Reduce card height on single-column mobile */
+  .stat-card {
+    min-height: 80px;
   }
 
   .quick-actions {
@@ -727,8 +736,14 @@
   .finance-stats {
     grid-template-columns: 1fr;
   }
+}
 
-  .dashboard-header h1 {
-    font-size: 1.8rem;
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    min-height: auto;
   }
 }

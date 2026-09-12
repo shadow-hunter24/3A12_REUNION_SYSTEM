@@ -51,7 +51,7 @@
 .admin-login-card h1 {
   text-align: center;
   font-family: "Playfair Display", serif;
-  font-size: 38px;
+  font-size: clamp(28px, 8vw, 38px);
   margin: 0;
 }
 
@@ -103,6 +103,7 @@
   border-radius: 10px;
 
   padding: 15px;
+  min-height: 44px;
 
   background: #171717;
   color: white;

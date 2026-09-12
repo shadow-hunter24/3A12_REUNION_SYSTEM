@@ -50,6 +50,75 @@ button {
   color: white;
 }
 
+/* Hamburger button — hidden on desktop */
+.nav-hamburger {
+  display: none;
+  border: none;
+  background: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  place-items: center;
+}
+
+/* Mobile nav drawer */
+.mobile-nav {
+  display: none;
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 50;
+  width: min(300px, 85vw);
+  height: 100%;
+  background: #0d1117;
+  color: white;
+  flex-direction: column;
+  padding: 80px 30px 40px;
+  gap: 8px;
+  transform: translateX(100%);
+  transition: transform 0.28s ease;
+}
+
+.mobile-nav.mobile-nav-open {
+  transform: translateX(0);
+}
+
+.mobile-nav a {
+  color: #ccc;
+  font-size: 17px;
+  font-weight: 600;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.mobile-nav a:hover {
+  color: #c6a15b;
+}
+
+.mobile-nav-register {
+  margin-top: 20px;
+  background: #c6a15b !important;
+  color: #111 !important;
+  border-radius: 8px;
+  padding: 15px 20px !important;
+  text-align: center;
+  border-bottom: none !important;
+  font-weight: 800 !important;
+}
+
+/* Dark overlay behind mobile nav */
+.mobile-nav-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.6);
+}
+
 .logo {
   display: flex;
   flex-direction: column;
@@ -97,10 +166,12 @@ button {
   align-items: center;
   padding: 130px 8% 80px;
   color: white;
-  background:
+  background-color: #0c0f14; /* fallback while image loads */
+  background-image:
     linear-gradient(110deg, rgba(12,15,20,0.92), rgba(12,15,20,0.55)),
-    url("https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=2000&q=85")
-    center/cover;
+    url("https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=2000&q=85");
+  background-size: cover;
+  background-position: center;
 }
 
 .hero-overlay {
@@ -451,16 +522,51 @@ footer > p {
     display: none;
   }
 
+  /* Hide desktop register button, show hamburger instead */
+  .nav-button {
+    display: none;
+  }
+
+  .nav-hamburger {
+    display: grid;
+  }
+
+  /* Show mobile nav drawer and overlay when triggered */
+  .mobile-nav {
+    display: flex;
+  }
+
+  .mobile-nav-overlay {
+    display: block;
+  }
+
   .navbar {
     padding: 20px 5%;
   }
 
   .hero {
     padding: 130px 6% 70px;
+    /* Fallback colour while image loads on slow connections */
+    background-color: #0c0f14;
   }
 
   .hero h1 {
-    font-size: 58px;
+    font-size: clamp(40px, 12vw, 58px);
+  }
+
+  .hero-theme {
+    font-size: 16px;
+  }
+
+  /* Full-width buttons on mobile */
+  .hero-buttons {
+    flex-direction: column;
+  }
+
+  .hero-buttons .primary-button,
+  .hero-buttons .secondary-button {
+    width: 100%;
+    text-align: center;
   }
 
   .countdown {
@@ -471,12 +577,22 @@ footer > p {
     font-size: 30px;
   }
 
+  /* Countdown labels readable minimum */
+  .countdown span {
+    font-size: 11px;
+  }
+
   .section {
-    padding: 80px 6%;
+    padding: 70px 6%;
   }
 
   .feature-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  /* Reduce feature card padding on mobile */
+  .feature-card {
+    padding: 25px 18px;
   }
 
   .stats {
@@ -484,16 +600,16 @@ footer > p {
   }
 
   .timeline-item {
-    grid-template-columns: 90px 1fr;
+    grid-template-columns: 85px 1fr;
     gap: 15px;
   }
 
   .register-section {
-    padding: 80px 6%;
+    padding: 70px 6%;
   }
 
   .register-section h2 {
-    font-size: 55px;
+    font-size: clamp(36px, 10vw, 55px);
   }
 }
 
@@ -508,14 +624,29 @@ footer > p {
   }
 
   .countdown {
-    gap: 15px;
+    gap: 12px;
   }
 
   .countdown strong {
-    font-size: 25px;
+    font-size: 24px;
   }
 
+  /* Keep labels readable — 9px is too small */
   .countdown span {
-    font-size: 9px;
+    font-size: 11px;
+  }
+
+  .section {
+    padding: 60px 5%;
+  }
+
+  /* Stack timeline vertically on very small screens */
+  .timeline-item {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .timeline-item > span {
+    font-size: 12px;
   }
 }
