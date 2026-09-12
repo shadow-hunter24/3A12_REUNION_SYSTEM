@@ -353,7 +353,9 @@ export default function Register() {
         <div className="success-card" role="main" aria-labelledby="success-heading">
           <div className="success-icon" aria-hidden="true">✓</div>
           <p className="eyebrow">REGISTRATION SUCCESSFUL</p>
-          <h1 id="success-heading">Welcome Back, Classmate!</h1>
+          <h1 id="success-heading">
+            Welcome back, {formData.full_name.trim().split(" ")[0]}!
+          </h1>
           <p>
             Your registration for the{" "}
             <strong>Class of 2021 5th Anniversary Reunion</strong> has been received.
