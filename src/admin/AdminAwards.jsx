@@ -4,6 +4,7 @@ import {
   Trophy, RefreshCw, AlertTriangle, Check, Vote, X,
   Briefcase, Heart, Laugh, Shirt, Star, Target, TrendingUp,
 } from "lucide-react";
+import "./AdminPages.css";
 
 // ── Category icon component (replaces emoji strings) ──────────
 const CATEGORY_ICON_MAP = {
@@ -24,7 +25,6 @@ function CategoryIcon({ category, size = 24 }) {
   }
   return <Trophy size={size} aria-hidden="true" />;
 }
-import "./AdminPages.css";
 
 // ── Default icons removed — using Lucide CategoryIcon component instead ──────
 
