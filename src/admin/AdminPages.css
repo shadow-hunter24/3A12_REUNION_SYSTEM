@@ -2221,3 +2221,431 @@
     width: 100%;
   }
 }
+
+/* ══════════════════════════════════════════════════════════
+   CHECK-IN PAGE
+   ══════════════════════════════════════════════════════════ */
+
+.checkin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.checkin-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: white;
+  border: 1px solid #e7eaf0;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+}
+
+.checkin-stat-card > span {
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+.checkin-stat-card strong {
+  display: block;
+  font-size: 1.6rem;
+  color: #172033;
+  line-height: 1;
+}
+
+.checkin-stat-card p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #667085;
+}
+
+.checkin-stat-in  { border-left: 4px solid #16a34a; }
+.checkin-stat-out { border-left: 4px solid #ea6c00; }
+.checkin-stat-total { border-left: 4px solid #b58a3a; }
+.checkin-stat-people { border-left: 4px solid #3b5bdb; }
+
+/* Progress */
+.checkin-progress-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.checkin-progress-track {
+  flex: 1;
+  height: 10px;
+  background: #e2d9c8;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.checkin-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.checkin-progress-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #16a34a;
+  white-space: nowrap;
+}
+
+/* List */
+.checkin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: white;
+  border: 1px solid #e7eaf0;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.checkin-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0f2f5;
+  transition: background 0.15s;
+}
+
+.checkin-row:last-child { border-bottom: none; }
+
+.checkin-row--in {
+  background: #f5fdf8;
+}
+
+.checkin-row:hover { background: #fdfaf5; }
+.checkin-row--in:hover { background: #ecfdf3; }
+
+/* Avatar */
+.checkin-avatar {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #172033;
+  color: white;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.checkin-avatar--in {
+  background: #16a34a;
+  font-size: 18px;
+}
+
+/* Info */
+.checkin-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.checkin-info strong {
+  display: block;
+  color: #172033;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.checkin-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+
+.checkin-meta code {
+  background: #f4f0e6;
+  color: #8a6310;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+.checkin-guests {
+  font-size: 11px;
+  color: #3b5bdb;
+  font-weight: 700;
+  background: #eef2ff;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+.checkin-time {
+  font-size: 11px;
+  color: #16a34a;
+}
+
+/* Action */
+.checkin-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.checkin-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  background: #172033;
+  color: white;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  min-height: 38px;
+  transition: background 0.2s;
+}
+
+.checkin-btn:hover:not(:disabled) { background: #b58a3a; }
+.checkin-btn:focus-visible { outline: 3px solid #b58a3a; outline-offset: 3px; }
+.checkin-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.checkin-badge-in {
+  font-size: 12px;
+  font-weight: 800;
+  color: #16a34a;
+  white-space: nowrap;
+}
+
+.checkin-undo-btn {
+  border: 1px solid #ccc;
+  background: white;
+  color: #667085;
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.checkin-undo-btn:hover { border-color: #b42318; color: #b42318; }
+.checkin-undo-btn:focus-visible { outline: 2px solid #b58a3a; outline-offset: 2px; }
+
+@media (max-width: 900px) {
+  .checkin-stats-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 600px) {
+  .checkin-stats-grid { grid-template-columns: 1fr 1fr; }
+  .checkin-row { padding: 12px 14px; gap: 10px; }
+  .checkin-info strong { font-size: 13px; }
+  .checkin-btn { padding: 8px 12px; font-size: 12px; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   MEMORIES PAGE
+   ══════════════════════════════════════════════════════════ */
+
+/* Tabs */
+.mem-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #eee;
+  margin-bottom: 0;
+}
+
+.mem-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: #888;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.2s;
+}
+
+.mem-tab:hover { color: #b58a3a; }
+.mem-tab:focus-visible { outline: 2px solid #b58a3a; outline-offset: 2px; }
+
+.mem-tab--active {
+  color: #b58a3a;
+  border-bottom-color: #b58a3a;
+}
+
+.mem-tab-count {
+  background: #f0ebe0;
+  color: #9a7134;
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mem-tab--active .mem-tab-count {
+  background: #b58a3a;
+  color: white;
+}
+
+/* Submission cards */
+.mem-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.mem-card {
+  background: white;
+  border: 1px solid #e8e4db;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow 0.2s;
+}
+
+.mem-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+
+.mem-card--approved {
+  border-color: #a7e3c1;
+  background: #f5fdf8;
+}
+
+.mem-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.mem-card-header strong {
+  display: block;
+  color: #172033;
+  font-size: 14px;
+}
+
+.mem-class-id {
+  background: #f4f0e6;
+  color: #8a6310;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  display: inline-block;
+  margin-top: 4px;
+}
+
+.mem-badge-published {
+  font-size: 11px;
+  font-weight: 800;
+  color: #027a48;
+  background: #ecfdf3;
+  padding: 4px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mem-text {
+  flex: 1;
+  color: #555;
+  font-size: 13px;
+  line-height: 1.7;
+  font-style: italic;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mem-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid #f0ece4;
+}
+
+/* Approve modal memory preview */
+.mem-preview-box {
+  background: #f8f4eb;
+  border: 1px solid #e8d9b3;
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* Public wall grid */
+.mem-wall-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.mem-wall-card {
+  background: white;
+  border: 1px solid #e8e4db;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+.mem-wall-text {
+  flex: 1;
+  color: #444;
+  font-size: 14px;
+  line-height: 1.8;
+  font-style: italic;
+  margin: 0;
+}
+
+.mem-wall-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #f0ece4;
+  padding-top: 12px;
+}
+
+.mem-wall-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #b58a3a;
+}
+
+@media (max-width: 900px) {
+  .mem-card-grid { grid-template-columns: 1fr; }
+  .mem-wall-grid  { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .mem-wall-grid { grid-template-columns: 1fr; }
+  .mem-tabs { overflow-x: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkin-progress-fill { transition: none; }
+  .checkin-btn, .mem-card { transition: none; }
+}
