@@ -1,16 +1,20 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import {
+  LayoutDashboard, Users, Wallet, Shirt, Trophy,
+  Camera, Ticket, Globe, Menu, X, LogOut,
+} from "lucide-react";
 import "./AdminLayout.css";
 
 const menu = [
-  { name: "Dashboard",      path: "/admin",               icon: "▦" },
-  { name: "Registrations",  path: "/admin/registrations", icon: "👥" },
-  { name: "Contributions",  path: "/admin/contributions", icon: "💰" },
-  { name: "T-Shirts",       path: "/admin/tshirts",       icon: "👕" },
-  { name: "Awards",         path: "/admin/awards",        icon: "🏆" },
-  { name: "Memories",       path: "/admin/memories",      icon: "📸" },
-  { name: "Check-In",       path: "/admin/checkin",       icon: "🎟️" },
+  { name: "Dashboard",     path: "/admin",               Icon: LayoutDashboard },
+  { name: "Registrations", path: "/admin/registrations", Icon: Users },
+  { name: "Contributions", path: "/admin/contributions", Icon: Wallet },
+  { name: "T-Shirts",      path: "/admin/tshirts",       Icon: Shirt },
+  { name: "Awards",        path: "/admin/awards",        Icon: Trophy },
+  { name: "Memories",      path: "/admin/memories",      Icon: Camera },
+  { name: "Check-In",      path: "/admin/checkin",       Icon: Ticket },
 ];
 
 export default function AdminLayout() {
@@ -89,7 +93,9 @@ export default function AdminLayout() {
           aria-expanded={mobileOpen}
           aria-controls="admin-sidebar"
         >
-          <span aria-hidden="true">{mobileOpen ? "✕" : "☰"}</span>
+          <span aria-hidden="true">
+            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+          </span>
         </button>
       </div>
 
@@ -120,22 +126,22 @@ export default function AdminLayout() {
         <nav className="admin-navigation" aria-label="Admin menu">
           <p className="navigation-label" aria-hidden="true">MANAGEMENT</p>
 
-          {menu.map((item) => (
+          {menu.map(({ name, path, Icon }) => (
             <Link
-              key={item.path}
-              to={item.path}
-              className={`admin-menu-item ${isActive(item.path) ? "active" : ""}`}
-              aria-current={isActive(item.path) ? "page" : undefined}
+              key={path}
+              to={path}
+              className={`admin-menu-item ${isActive(path) ? "active" : ""}`}
+              aria-current={isActive(path) ? "page" : undefined}
             >
-              <span aria-hidden="true">{item.icon}</span>
-              {item.name}
+              <Icon size={16} aria-hidden="true" />
+              {name}
             </Link>
           ))}
 
           <p className="navigation-label" aria-hidden="true">SYSTEM</p>
 
           <Link to="/" className="admin-menu-item">
-            <span aria-hidden="true">↩</span>
+            <Globe size={16} aria-hidden="true" />
             View Website
           </Link>
         </nav>
@@ -160,7 +166,7 @@ export default function AdminLayout() {
             aria-label="Sign out of admin panel"
             title="Sign out"
           >
-            <span aria-hidden="true">↪</span>
+            <LogOut size={18} aria-hidden="true" />
           </button>
         </div>
       </aside>

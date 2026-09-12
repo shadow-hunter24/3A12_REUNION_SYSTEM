@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import {
+  Users, Check, UserRound, X, Wallet, Pin, Shirt,
+  Ticket, RefreshCw, Camera, Trophy,
+} from "lucide-react";
 import "./Dashboard.css";
 
 function formatDate(dateString) {
@@ -290,7 +294,7 @@ export default function Dashboard() {
           aria-label="Refresh dashboard data"
           aria-busy={loading}
         >
-          <span aria-hidden="true">↻</span> Refresh
+          <RefreshCw size={15} aria-hidden="true" /> Refresh
         </button>
       </div>
 
@@ -332,16 +336,16 @@ export default function Dashboard() {
         aria-label="Main registration statistics"
       >
         <div className="stat-card stat-primary" role="figure" aria-label={`Total registered: ${statistics.total} classmates`}>
-          <div className="stat-icon" aria-hidden="true">👥</div>
+          <div className="stat-icon" aria-hidden="true"><Users size={22} /></div>
           <div className="stat-content">
             <span>Total Registered</span>
-            <strong aria-label={statistics.total}>{statistics.total}</strong>
+            <strong>{statistics.total}</strong>
             <small>Classmates</small>
           </div>
         </div>
 
         <div className="stat-card stat-success" role="figure" aria-label={`Attending: ${statistics.attending}, ${attendancePercentage}% of registered`}>
-          <div className="stat-icon" aria-hidden="true">✓</div>
+          <div className="stat-icon" aria-hidden="true"><Check size={22} /></div>
           <div className="stat-content">
             <span>Attending</span>
             <strong>{statistics.attending}</strong>
@@ -350,7 +354,7 @@ export default function Dashboard() {
         </div>
 
         <div className="stat-card stat-warning" role="figure" aria-label={`Guests: ${statistics.totalGuests}, ${statistics.totalPeopleAttending} people expected total`}>
-          <div className="stat-icon" aria-hidden="true">👤</div>
+          <div className="stat-icon" aria-hidden="true"><UserRound size={22} /></div>
           <div className="stat-content">
             <span>Guests</span>
             <strong>{statistics.totalGuests}</strong>
@@ -359,7 +363,7 @@ export default function Dashboard() {
         </div>
 
         <div className="stat-card stat-danger" role="figure" aria-label={`Not attending: ${statistics.notAttending} classmates`}>
-          <div className="stat-icon" aria-hidden="true">×</div>
+          <div className="stat-icon" aria-hidden="true"><X size={22} /></div>
           <div className="stat-content">
             <span>Not Attending</span>
             <strong>{statistics.notAttending}</strong>
@@ -375,63 +379,37 @@ export default function Dashboard() {
       >
 
         <div className="stat-card">
-          <div className="stat-icon">💰</div>
-
+          <div className="stat-icon" aria-hidden="true"><Wallet size={22} /></div>
           <div className="stat-content">
             <span>Total Collected</span>
-
-            <strong>
-              {formatCurrency(contributionStats.collected)}
-            </strong>
-
-            <small>
-              {contributionTableExists
-                ? "Contribution records"
-                : "Contribution module pending"}
-            </small>
+            <strong>{formatCurrency(contributionStats.collected)}</strong>
+            <small>{contributionTableExists ? "Contribution records" : "Contribution module pending"}</small>
           </div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">📌</div>
-
+          <div className="stat-icon" aria-hidden="true"><Pin size={22} /></div>
           <div className="stat-content">
             <span>Outstanding</span>
-
-            <strong>
-              {formatCurrency(contributionStats.outstanding)}
-            </strong>
-
+            <strong>{formatCurrency(contributionStats.outstanding)}</strong>
             <small>Remaining balance</small>
           </div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">👕</div>
-
+          <div className="stat-icon" aria-hidden="true"><Shirt size={22} /></div>
           <div className="stat-content">
             <span>T-Shirts</span>
-
-            <strong>
-              {statistics.tshirtQuantity}
-            </strong>
-
-            <small>
-              {statistics.classmatesWithTshirts} classmates ordered
-            </small>
+            <strong>{statistics.tshirtQuantity}</strong>
+            <small>{statistics.classmatesWithTshirts} classmates ordered</small>
           </div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">🎟️</div>
-
+          <div className="stat-icon" aria-hidden="true"><Ticket size={22} /></div>
           <div className="stat-content">
             <span>Expected Attendance</span>
-
-            <strong>
-              {statistics.totalPeopleAttending}
-            </strong>
-
+            <strong>{statistics.totalPeopleAttending}</strong>
             <small>Including guests</small>
           </div>
         </div>
@@ -463,12 +441,9 @@ export default function Dashboard() {
 
           {recentRegistrations.length === 0 ? (
             <div className="empty-state">
-              <div>👥</div>
+              <div><Users size={36} aria-hidden="true" /></div>
               <h3>No registrations yet</h3>
-              <p>
-                New classmates will appear here after they
-                register.
-              </p>
+              <p>New classmates will appear here after they register.</p>
             </div>
           ) : (
             <div className="registration-list">
@@ -624,11 +599,8 @@ export default function Dashboard() {
 
           {tshirtSizes.length === 0 ? (
             <div className="empty-state compact">
-              <div>👕</div>
-
-              <p>
-                No T-shirt orders have been recorded yet.
-              </p>
+              <div><Shirt size={32} aria-hidden="true" /></div>
+              <p>No T-shirt orders have been recorded yet.</p>
             </div>
           ) : (
             <div className="size-list">
@@ -699,10 +671,7 @@ export default function Dashboard() {
 
           {!contributionTableExists ? (
             <div className="module-pending">
-
-              <div className="pending-icon">
-                💰
-              </div>
+              <div className="pending-icon"><Wallet size={28} aria-hidden="true" /></div>
 
               <h3>
                 Contribution Module
@@ -808,91 +777,48 @@ export default function Dashboard() {
         </div>
 
         <div className="quick-actions">
-
-          <Link
-            to="/admin/registrations"
-            className="quick-action"
-          >
-            <span>👥</span>
-
+          <Link to="/admin/registrations" className="quick-action">
+            <span><Users size={20} aria-hidden="true" /></span>
             <div>
               <strong>Registrations</strong>
-              <small>
-                View and manage classmates
-              </small>
+              <small>View and manage classmates</small>
             </div>
           </Link>
-
-          <Link
-            to="/admin/contributions"
-            className="quick-action"
-          >
-            <span>💰</span>
-
+          <Link to="/admin/contributions" className="quick-action">
+            <span><Wallet size={20} aria-hidden="true" /></span>
             <div>
               <strong>Contributions</strong>
-              <small>
-                Track reunion payments
-              </small>
+              <small>Track reunion payments</small>
             </div>
           </Link>
-
-          <Link
-            to="/admin/tshirts"
-            className="quick-action"
-          >
-            <span>👕</span>
-
+          <Link to="/admin/tshirts" className="quick-action">
+            <span><Shirt size={20} aria-hidden="true" /></span>
             <div>
               <strong>T-Shirts</strong>
-              <small>
-                Manage shirt orders
-              </small>
+              <small>Manage shirt orders</small>
             </div>
           </Link>
-
-          <Link
-            to="/admin/awards"
-            className="quick-action"
-          >
-            <span>🏆</span>
-
+          <Link to="/admin/awards" className="quick-action">
+            <span><Trophy size={20} aria-hidden="true" /></span>
             <div>
               <strong>Awards</strong>
-              <small>
-                Manage nominations and voting
-              </small>
+              <small>Manage nominations and voting</small>
             </div>
           </Link>
-
-          <Link
-            to="/admin/memories"
-            className="quick-action"
-          >
-            <span>📸</span>
-
+          <Link to="/admin/memories" className="quick-action">
+            <span><Camera size={20} aria-hidden="true" /></span>
             <div>
               <strong>Memories</strong>
-              <small>
-                Photos, videos and stories
-              </small>
+              <small>Photos, videos and stories</small>
             </div>
           </Link>
-
-          <Link
-            to="/admin/checkin"
-            className="quick-action"
-          >
-            <span>🎟️</span>
-
+          <Link to="/admin/checkin" className="quick-action">
+            <span><Ticket size={20} aria-hidden="true" /></span>
             <div>
               <strong>Check-In</strong>
-              <small>
-                Scan reunion QR passes
-              </small>
+              <small>Scan reunion QR passes</small>
             </div>
           </Link>
-
         </div>
 
       </section>

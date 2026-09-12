@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "./lib/supabase";
+import {
+  Trophy, Briefcase, Heart, Laugh, Shirt, Star, Target,
+  TrendingUp, AlertTriangle, Check, Vote,
+} from "lucide-react";
 import "./Awards.css";
 
 // ─── STEP CONSTANTS ───────────────────────────────────────────
@@ -11,25 +15,25 @@ const STEP = {
   VOTE:     "vote",
 };
 
-const CATEGORY_ICONS = {
-  "Most Outstanding": "🏆",
-  "Most Successful":  "💼",
-  "Most Supportive":  "❤️",
-  "Most Humorous":    "😂",
-  "Best Dressed":     "👔",
-  "Most Influential": "🌟",
-  "Most Likely":      "🎯",
-  "Best Couple":      "💑",
-  "Most Improved":    "📈",
-  "Class Clown":      "🤣",
+// Component-based icon lookup — no emojis
+const CATEGORY_ICON_MAP = {
+  "Most Outstanding": Trophy,
+  "Most Successful":  Briefcase,
+  "Most Supportive":  Heart,
+  "Most Humorous":    Laugh,
+  "Best Dressed":     Shirt,
+  "Most Influential": Star,
+  "Most Likely":      Target,
+  "Best Couple":      Heart,
+  "Most Improved":    TrendingUp,
+  "Class Clown":      Laugh,
 };
 
-function getCategoryIcon(category) {
-  if (category.icon && category.icon !== "🏆") return category.icon;
-  for (const [key, icon] of Object.entries(CATEGORY_ICONS)) {
-    if (category.name.includes(key)) return icon;
+function CategoryIcon({ category, size = 20 }) {
+  for (const [key, Icon] of Object.entries(CATEGORY_ICON_MAP)) {
+    if (category.name.includes(key)) return <Icon size={size} aria-hidden="true" />;
   }
-  return "🏆";
+  return <Trophy size={size} aria-hidden="true" />;
 }
 
 // ─── Shared feedback components ───────────────────────────────
@@ -42,7 +46,9 @@ function FeedbackBanner({ type, message, id }) {
       role="alert"
       aria-live={type === "error" ? "assertive" : "polite"}
     >
-      <span aria-hidden="true">{type === "error" ? "⚠ " : "✓ "}</span>
+      {type === "error"
+        ? <AlertTriangle size={15} aria-hidden="true" style={{ flexShrink: 0 }} />
+        : <Check size={15} aria-hidden="true" style={{ flexShrink: 0 }} />}
       {message}
     </div>
   );
@@ -495,25 +501,20 @@ export default function AwardsPage() {
 
             {categories.length === 0 ? (
               <div className="awards-empty" role="status">
-                <span aria-hidden="true">🏆</span>
+                <Trophy size={48} aria-hidden="true" />
                 <h3>Award categories coming soon</h3>
                 <p>The admin is setting up the awards. Check back shortly.</p>
               </div>
             ) : (
-              <div
-                className="public-award-grid"
-                role="list"
-                aria-label="Award categories"
-              >
+              <div className="public-award-grid" role="list" aria-label="Award categories">
                 {categories.map((cat) => {
                   const hasNominated = !!myNominations[cat.id];
                   const hasVoted     = !!myVotes[cat.id];
-                  const icon         = getCategoryIcon(cat);
                   const isOpen       = cat.nomination_open || cat.voting_open;
 
                   let statusLabel = "Closed";
-                  if (cat.nomination_open) statusLabel = hasNominated ? "Nominated ✓" : "Nominations Open";
-                  if (cat.voting_open)     statusLabel = hasVoted     ? "Voted ✓"     : "Voting Open";
+                  if (cat.nomination_open) statusLabel = hasNominated ? "Nominated" : "Nominations Open";
+                  if (cat.voting_open)     statusLabel = hasVoted     ? "Voted"     : "Voting Open";
 
                   return (
                     <div key={cat.id} role="listitem">
@@ -523,7 +524,9 @@ export default function AwardsPage() {
                         aria-label={`${cat.name} — ${statusLabel}`}
                         aria-disabled={!isOpen}
                       >
-                        <span className="award-card-icon" aria-hidden="true">{icon}</span>
+                        <span className="award-card-icon" aria-hidden="true">
+                          <CategoryIcon category={cat} size={28} />
+                        </span>
                         <h3>{cat.name}</h3>
                         {cat.description && <p>{cat.description}</p>}
 
@@ -538,9 +541,7 @@ export default function AwardsPage() {
                               {hasVoted ? "✓ Voted" : "Voting Open"}
                             </span>
                           )}
-                          {!isOpen && (
-                            <span className="status-closed">Closed</span>
-                          )}
+                          {!isOpen && <span className="status-closed">Closed</span>}
                         </div>
                       </button>
                     </div>
@@ -758,7 +759,7 @@ export default function AwardsPage() {
               </div>
             ) : finalists.length === 0 ? (
               <div className="awards-empty" role="status">
-                <span aria-hidden="true">🏆</span>
+                <Trophy size={48} aria-hidden="true" />
                 <h3>Finalists not yet announced</h3>
                 <p>The admin is reviewing nominations. Check back soon.</p>
               </div>
@@ -785,7 +786,7 @@ export default function AwardsPage() {
                         onClick={() => requestVote(f.classmate_id, f.full_name)}
                         aria-label={`Vote for ${f.full_name}`}
                       >
-                        <span aria-hidden="true">🗳️</span> Vote
+                        <Vote size={15} aria-hidden="true" /> Vote
                       </button>
                     )}
                   </div>
