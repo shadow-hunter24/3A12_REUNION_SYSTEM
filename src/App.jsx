@@ -1,5 +1,6 @@
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { supabase } from "./lib/supabase";
 import "./App.css";
 
 const REUNION_DATE = new Date("2026-12-31T10:00:00");
@@ -40,6 +41,21 @@ function App() {
   const countdown = useCountdown(REUNION_DATE);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // â”€â”€ Public memory wall â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [memories, setMemories]       = useState([]);
+  const [memoriesLoading, setMemoriesLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("memories_wall")
+      .select("id, memory_text, display_name, is_anonymous, approved_at")
+      .order("approved_at", { ascending: false })
+      .then(({ data }) => {
+        setMemories(data || []);
+        setMemoriesLoading(false);
+      });
+  }, []);
+
   // Close mobile menu when navigating to a section
   function handleNavClick() {
     setMenuOpen(false);
@@ -47,7 +63,7 @@ function App() {
 
   return (
     <div className="app">
-      {/* Skip navigation link — keyboard / screen-reader users */}
+      {/* Skip navigation link â€” keyboard / screen-reader users */}
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
@@ -71,7 +87,7 @@ function App() {
           Register
         </Link>
 
-        {/* Hamburger — mobile only */}
+        {/* Hamburger â€” mobile only */}
         <button
           className="nav-hamburger"
           onClick={() => setMenuOpen((prev) => !prev)}
@@ -79,7 +95,7 @@ function App() {
           aria-expanded={menuOpen}
           aria-controls="mobile-nav"
         >
-          <span aria-hidden="true">{menuOpen ? "✕" : "☰"}</span>
+          <span aria-hidden="true">{menuOpen ? "âœ•" : "â˜°"}</span>
         </button>
       </nav>
 
@@ -106,7 +122,7 @@ function App() {
         <a href="#memories"  onClick={handleNavClick}>Memories</a>
         <a href="#contact"   onClick={handleNavClick}>Contact</a>
         <Link to="/register" onClick={handleNavClick} className="mobile-nav-register">
-          Register for Reunion →
+          Register for Reunion â†’
         </Link>
       </div>
 
@@ -118,7 +134,7 @@ function App() {
           <div className="hero-overlay" aria-hidden="true"></div>
 
           <div className="hero-content">
-            <div className="badge" aria-hidden="true">🎓 CLASS OF 2021</div>
+            <div className="badge" aria-hidden="true">ðŸŽ“ CLASS OF 2021</div>
 
             <h1 id="hero-heading">
               5th Anniversary
@@ -126,7 +142,7 @@ function App() {
             </h1>
 
             <p className="hero-theme">
-              Different Paths • One Beginning • One Family
+              Different Paths â€¢ One Beginning â€¢ One Family
             </p>
 
             <p className="hero-description">
@@ -136,11 +152,11 @@ function App() {
 
             <div className="hero-buttons">
               <Link to="/register" className="primary-button">
-                Register for Reunion →
+                Register for Reunion â†’
               </Link>
 
               <Link to="/awards" className="secondary-button">
-                <span aria-hidden="true">🏆</span> Awards &amp; Voting
+                <span aria-hidden="true">ðŸ†</span> Awards &amp; Voting
               </Link>
 
               <a href="#programme" className="secondary-button">
@@ -150,7 +166,7 @@ function App() {
 
             <div className="year" aria-label="Class years: 2021 to 2026">
               <span>2021</span>
-              <strong aria-hidden="true">→</strong>
+              <strong aria-hidden="true">â†’</strong>
               <span>2026</span>
             </div>
           </div>
@@ -231,25 +247,25 @@ function App() {
 
           <div className="feature-grid" role="list">
             <article className="feature-card" role="listitem">
-              <div className="feature-icon" aria-hidden="true">🤝</div>
+              <div className="feature-icon" aria-hidden="true">ðŸ¤</div>
               <h3>Reconnect</h3>
               <p>Meet old friends, classmates and teachers after five years apart.</p>
             </article>
 
             <article className="feature-card" role="listitem">
-              <div className="feature-icon" aria-hidden="true">📸</div>
+              <div className="feature-icon" aria-hidden="true">ðŸ“¸</div>
               <h3>Create Memories</h3>
               <p>Capture new moments and relive some of our best SHS memories.</p>
             </article>
 
             <article className="feature-card" role="listitem">
-              <div className="feature-icon" aria-hidden="true">🏆</div>
+              <div className="feature-icon" aria-hidden="true">ðŸ†</div>
               <h3>Celebrate</h3>
               <p>Celebrate the achievements and journeys of our classmates.</p>
             </article>
 
             <article className="feature-card" role="listitem">
-              <div className="feature-icon" aria-hidden="true">💼</div>
+              <div className="feature-icon" aria-hidden="true">ðŸ’¼</div>
               <h3>Network</h3>
               <p>Build professional, business and personal connections.</p>
             </article>
@@ -329,7 +345,7 @@ function App() {
             </p>
 
             <Link to="/register" className="primary-button">
-              Register Now →
+              Register Now â†’
             </Link>
           </div>
         </section>
@@ -341,17 +357,42 @@ function App() {
           <h2 id="memories-heading">
             Then &amp; Now
             <br />
-            <span>2021 → 2026</span>
+            <span>2021 â†’ 2026</span>
           </h2>
 
-          <div className="memory-placeholder" role="region" aria-label="Class memories gallery — coming soon">
-            <div aria-hidden="true">📷</div>
-            <h3>Our Memories Will Live Here</h3>
-            <p>
-              Photos and videos submitted by members of the Class of 2021
-              will appear here.
-            </p>
-          </div>
+          {memoriesLoading ? (
+            <div className="memory-placeholder" role="status" aria-live="polite">
+              <div aria-hidden="true">ðŸ’­</div>
+              <h3>Loading Memoriesâ€¦</h3>
+            </div>
+          ) : memories.length === 0 ? (
+            <div className="memory-placeholder" role="region" aria-label="Memory wall â€” no entries yet">
+              <div aria-hidden="true">ðŸ“·</div>
+              <h3>Our Memories Will Live Here</h3>
+              <p>
+                Approved memories from the Class of 2021 will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="memory-wall-grid" role="list" aria-label="Class memory wall">
+              {memories.map((m) => (
+                <article
+                  key={m.id}
+                  className="memory-wall-card"
+                  role="listitem"
+                  aria-label={`Memory from ${m.is_anonymous ? "Anonymous" : m.display_name}`}
+                >
+                  <div className="memory-wall-quote" aria-hidden="true">"</div>
+                  <p className="memory-wall-text">{m.memory_text}</p>
+                  <div className="memory-wall-author">
+                    {m.is_anonymous
+                      ? <em>â€” Anonymous</em>
+                      : <span>â€” {m.display_name}</span>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
       </main>
@@ -363,10 +404,10 @@ function App() {
           <span>CLASS OF 2021</span>
         </div>
 
-        <p>Different Paths • One Beginning • One Family</p>
+        <p>Different Paths â€¢ One Beginning â€¢ One Family</p>
 
         <div className="footer-bottom">
-          <small>© 2026 Class of 2021 Reunion. All rights reserved.</small>
+          <small>Â© 2026 Class of 2021 Reunion. All rights reserved.</small>
         </div>
       </footer>
     </div>

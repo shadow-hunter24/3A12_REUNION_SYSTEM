@@ -709,3 +709,82 @@ footer > p {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* ── Public Memory Wall ──────────────────────────────────── */
+.memory-wall-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  margin-top: 10px;
+}
+
+.memory-wall-card {
+  background: white;
+  border-radius: 14px;
+  padding: 28px 24px 22px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e8e4db;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.memory-wall-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.memory-wall-quote {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 56px;
+  line-height: 1;
+  color: #d4a84b;
+  margin: -10px 0 -14px;
+  user-select: none;
+}
+
+.memory-wall-text {
+  flex: 1;
+  color: #444;
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 0;
+  /* Clamp to 6 lines so long memories don't overflow */
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.memory-wall-author {
+  font-size: 13px;
+  font-weight: 700;
+  color: #b58a3a;
+  padding-top: 12px;
+  border-top: 1px solid #f0ece4;
+}
+
+.memory-wall-author em {
+  color: #aaa;
+  font-style: italic;
+  font-weight: 400;
+}
+
+@media (max-width: 900px) {
+  .memory-wall-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .memory-wall-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .memory-wall-card {
+    transition: none;
+  }
+}
