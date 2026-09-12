@@ -252,7 +252,15 @@ export default function AdminAwards() {
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    setForm((prev) => {
+      const updated = { ...prev, [name]: type === "checkbox" ? checked : value };
+      // Enforce mutual exclusivity on the checkboxes
+      if (type === "checkbox" && checked) {
+        if (name === "voting_open")     updated.nomination_open = false;
+        if (name === "nomination_open") updated.voting_open     = false;
+      }
+      return updated;
+    });
     if (formErrors[name]) setFormErrors((prev) => ({ ...prev, [name]: null }));
   }
 
@@ -325,13 +333,31 @@ export default function AdminAwards() {
 
   async function toggleField(cat, field) {
     const newValue = !cat[field];
-    const { error: e } = await supabase.from("award_categories").update({ [field]: newValue }).eq("id", cat.id);
+
+    // Enforce mutual exclusivity:
+    // Opening voting → automatically close nominations
+    // Opening nominations → automatically close voting
+    const update = { [field]: newValue };
+    if (newValue) {
+      if (field === "voting_open")     update.nomination_open = false;
+      if (field === "nomination_open") update.voting_open     = false;
+    }
+
+    const { error: e } = await supabase
+      .from("award_categories")
+      .update(update)
+      .eq("id", cat.id);
     if (e) { setError(e.message); return; }
+
     const fieldLabel = field === "nomination_open" ? "Nominations" : "Voting";
-    setMessage(`${fieldLabel} ${newValue ? "opened" : "closed"} for "${cat.name}".`);
+    let msg = `${fieldLabel} ${newValue ? "opened" : "closed"} for "${cat.name}".`;
+    if (newValue && field === "voting_open")     msg += " Nominations have been closed automatically.";
+    if (newValue && field === "nomination_open") msg += " Voting has been closed automatically.";
+    setMessage(msg);
+
     await loadData();
     if (activeCategory?.id === cat.id) {
-      setActiveCategory((prev) => ({ ...prev, [field]: newValue }));
+      setActiveCategory((prev) => ({ ...prev, ...update }));
     }
   }
 
