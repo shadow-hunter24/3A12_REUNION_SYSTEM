@@ -381,6 +381,98 @@ export default function AdminAwards() {
     await loadData();
   }
 
+  // ── Nomination management ─────────────────────────────────
+  function requestDeleteNomination(nomineeId, nomineeName) {
+    setConfirmDialog({
+      heading: `Remove all nominations for ${nomineeName}?`,
+      body: "This will delete every nomination cast for this person in this category. This cannot be undone.",
+      confirmLabel: "Yes, Remove Nominations",
+      dangerous: true,
+      onConfirm: () => doDeleteNomination(nomineeId, nomineeName),
+    });
+  }
+
+  async function doDeleteNomination(nomineeId, nomineeName) {
+    setConfirmDialog(null);
+    setMessage(""); setError("");
+    const { error: e } = await supabase
+      .from("award_nominations")
+      .delete()
+      .eq("category_id", activeCategory.id)
+      .eq("nominee_id", nomineeId);
+    if (e) { setError(e.message); return; }
+    setMessage(`Nominations for ${nomineeName} removed.`);
+    await loadData();
+  }
+
+  function requestClearAllNominations() {
+    setConfirmDialog({
+      heading: `Clear ALL nominations for "${activeCategory.name}"?`,
+      body: "This will permanently delete every nomination cast for this award category. This cannot be undone.",
+      confirmLabel: "Yes, Clear All Nominations",
+      dangerous: true,
+      onConfirm: dolearAllNominations,
+    });
+  }
+
+  async function dolearAllNominations() {
+    setConfirmDialog(null);
+    setMessage(""); setError("");
+    const { error: e } = await supabase
+      .from("award_nominations")
+      .delete()
+      .eq("category_id", activeCategory.id);
+    if (e) { setError(e.message); return; }
+    setMessage("All nominations cleared.");
+    await loadData();
+  }
+
+  // ── Vote management ───────────────────────────────────────
+  function requestDeleteVote(classmate_id, name) {
+    setConfirmDialog({
+      heading: `Remove ${name}'s votes?`,
+      body: `This will delete all votes cast for ${name} in this category. This cannot be undone.`,
+      confirmLabel: "Yes, Remove Votes",
+      dangerous: true,
+      onConfirm: () => doDeleteVote(classmate_id, name),
+    });
+  }
+
+  async function doDeleteVote(classmate_id, name) {
+    setConfirmDialog(null);
+    setMessage(""); setError("");
+    const { error: e } = await supabase
+      .from("award_votes")
+      .delete()
+      .eq("category_id", activeCategory.id)
+      .eq("nominee_id", classmate_id);
+    if (e) { setError(e.message); return; }
+    setMessage(`Votes for ${name} removed.`);
+    await loadData();
+  }
+
+  function requestClearAllVotes() {
+    setConfirmDialog({
+      heading: `Clear ALL votes for "${activeCategory.name}"?`,
+      body: "This will permanently delete every vote cast for this award category. This cannot be undone.",
+      confirmLabel: "Yes, Clear All Votes",
+      dangerous: true,
+      onConfirm: doClearAllVotes,
+    });
+  }
+
+  async function doClearAllVotes() {
+    setConfirmDialog(null);
+    setMessage(""); setError("");
+    const { error: e } = await supabase
+      .from("award_votes")
+      .delete()
+      .eq("category_id", activeCategory.id);
+    if (e) { setError(e.message); return; }
+    setMessage("All votes cleared.");
+    await loadData();
+  }
+
   // ── Seed defaults — uses inline dialog ────────────────────
   function requestSeedDefaults() {
     setConfirmDialog({
@@ -574,15 +666,27 @@ export default function AdminAwards() {
                 Tick the ones you want to include in voting.
               </p>
             </div>
-            {activeSortedNominees.some((n) => !n.isFinalist) && (
-              <button
-                className="admin-primary-button"
-                onClick={() => addAllNomineesAsFinalists(activeCategory.id)}
-                aria-label="Add all nominees as finalists"
-              >
-                Add All as Finalists
-              </button>
-            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {activeSortedNominees.length > 0 && (
+                <button
+                  className="admin-table-action"
+                  style={{ background: "#fef3f2", color: "#b42318" }}
+                  onClick={requestClearAllNominations}
+                  aria-label="Clear all nominations for this category"
+                >
+                  Clear All Nominations
+                </button>
+              )}
+              {activeSortedNominees.some((n) => !n.isFinalist) && (
+                <button
+                  className="admin-primary-button"
+                  onClick={() => addAllNomineesAsFinalists(activeCategory.id)}
+                  aria-label="Add all nominees as finalists"
+                >
+                  Add All as Finalists
+                </button>
+              )}
+            </div>
           </div>
 
           {activeSortedNominees.length === 0 ? (
@@ -600,7 +704,7 @@ export default function AdminAwards() {
                     <th scope="col">Class ID</th>
                     <th scope="col">Nominations</th>
                     <th scope="col">Finalist Status</th>
-                    <th scope="col">Action</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -625,24 +729,34 @@ export default function AdminAwards() {
                           : <span className="admin-status-badge status-unpaid" aria-label="Not yet a finalist">Not Added</span>}
                       </td>
                       <td>
-                        {row.isFinalist ? (
+                        <div className="reg-action-group">
+                          {row.isFinalist ? (
+                            <button
+                              className="admin-table-action"
+                              style={{ background: "#fef3f2", color: "#b42318" }}
+                              onClick={() => removeFinalist(activeCategory.id, row.nomineeId)}
+                              aria-label={`Remove ${row.classmate.full_name} from finalists`}
+                            >
+                              Remove Finalist
+                            </button>
+                          ) : (
+                            <button
+                              className="admin-table-action"
+                              onClick={() => addFinalist(activeCategory.id, row.nomineeId)}
+                              aria-label={`Add ${row.classmate.full_name} as finalist`}
+                            >
+                              Add Finalist
+                            </button>
+                          )}
                           <button
                             className="admin-table-action"
                             style={{ background: "#fef3f2", color: "#b42318" }}
-                            onClick={() => removeFinalist(activeCategory.id, row.nomineeId)}
-                            aria-label={`Remove ${row.classmate.full_name} from finalists`}
+                            onClick={() => requestDeleteNomination(row.nomineeId, row.classmate.full_name)}
+                            aria-label={`Delete all nominations for ${row.classmate.full_name}`}
                           >
-                            Remove
+                            Delete Nominations
                           </button>
-                        ) : (
-                          <button
-                            className="admin-table-action"
-                            onClick={() => addFinalist(activeCategory.id, row.nomineeId)}
-                            aria-label={`Add ${row.classmate.full_name} as finalist`}
-                          >
-                            Add Finalist
-                          </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -662,6 +776,16 @@ export default function AdminAwards() {
                 {activeCategory.voting_open ? " Voting is currently open." : " Open voting when you're ready."}
               </p>
             </div>
+            {totalVotes > 0 && (
+              <button
+                className="admin-table-action"
+                style={{ background: "#fef3f2", color: "#b42318" }}
+                onClick={requestClearAllVotes}
+                aria-label="Clear all votes for this category"
+              >
+                Clear All Votes
+              </button>
+            )}
           </div>
 
           {activeFinalistResults.length === 0 ? (
@@ -679,7 +803,7 @@ export default function AdminAwards() {
                     <th scope="col">Finalist</th>
                     <th scope="col">Class ID</th>
                     <th scope="col">Votes</th>
-                    <th scope="col">Action</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -712,14 +836,26 @@ export default function AdminAwards() {
                         </strong>
                       </td>
                       <td>
-                        <button
-                          className="admin-table-action"
-                          style={{ background: "#fef3f2", color: "#b42318" }}
-                          onClick={() => removeFinalist(activeCategory.id, f.classmate_id)}
-                          aria-label={`Remove ${f.classmate.full_name} from finalists`}
-                        >
-                          Remove
-                        </button>
+                        <div className="reg-action-group">
+                          <button
+                            className="admin-table-action"
+                            style={{ background: "#fef3f2", color: "#b42318" }}
+                            onClick={() => removeFinalist(activeCategory.id, f.classmate_id)}
+                            aria-label={`Remove ${f.classmate.full_name} from finalists`}
+                          >
+                            Remove Finalist
+                          </button>
+                          {f.votes > 0 && (
+                            <button
+                              className="admin-table-action"
+                              style={{ background: "#fef3f2", color: "#b42318" }}
+                              onClick={() => requestDeleteVote(f.classmate_id, f.classmate.full_name)}
+                              aria-label={`Delete votes for ${f.classmate.full_name}`}
+                            >
+                              Delete Votes
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
