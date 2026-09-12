@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
+import { AlertTriangle } from "lucide-react";
 import "./AdminLogin.css";
 
 export default function AdminLogin() {
@@ -103,7 +104,7 @@ export default function AdminLogin() {
             tabIndex={-1}
             ref={errorRef}
           >
-            <span className="login-error-icon" aria-hidden="true">⚠</span>
+            <span className="login-error-icon" aria-hidden="true"><AlertTriangle size={16} /></span>
             <span>{error}</span>
           </div>
         )}

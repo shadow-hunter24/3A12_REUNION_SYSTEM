@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { RefreshCw, AlertTriangle, Check } from "lucide-react";
 import "./AdminPages.css";
 
 const SHIRT_SIZES = ["S", "M", "L", "XL", "XXL", "XXXL"];
@@ -150,14 +151,14 @@ export default function Tshirts() {
           onClick={loadData}
           aria-label="Refresh T-shirt records"
         >
-          <span aria-hidden="true">↻</span> Refresh
+          <RefreshCw size={14} aria-hidden="true" /> Refresh
         </button>
       </div>
 
       {/* Load error */}
       {loadError && (
         <div className="admin-error-message" role="alert" aria-live="assertive">
-          <span aria-hidden="true">⚠ </span>{loadError}
+          <AlertTriangle size={15} aria-hidden="true" /> {loadError}
         </div>
       )}
 
@@ -361,7 +362,7 @@ function TshirtRow({ classmate, saving, feedback, onSave }) {
             role={feedback.type === "error" ? "alert" : "status"}
             aria-live={feedback.type === "error" ? "assertive" : "polite"}
           >
-            <span aria-hidden="true">{feedback.type === "error" ? "⚠ " : "✓ "}</span>
+            <span aria-hidden="true">{feedback.type === "error" ? <AlertTriangle size={13} /> : <Check size={13} />}</span>
             {feedback.msg}
           </span>
         )}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { RefreshCw, AlertTriangle, Check, Users } from "lucide-react";
 import "./AdminPages.css";
 
 const SHS_HOUSES = [
@@ -49,7 +50,7 @@ function FieldErr({ id, msg }) {
   if (!msg) return null;
   return (
     <p id={id} className="contrib-field-error" role="alert">
-      <span aria-hidden="true">⚠ </span>{msg}
+      <AlertTriangle size={13} aria-hidden="true" /> {msg}
     </p>
   );
 }
@@ -298,14 +299,14 @@ export default function Registrations() {
           aria-label="Refresh registrations list"
           aria-busy={loading}
         >
-          <span aria-hidden="true">↻</span> Refresh
+          <RefreshCw size={14} aria-hidden="true" /> Refresh
         </button>
       </div>
 
       {/* Page-level error */}
       {error && (
         <div className="admin-error-message" role="alert" aria-live="assertive">
-          <span aria-hidden="true">⚠ </span>{error}
+          <AlertTriangle size={15} aria-hidden="true" /> {error}
           <button
             style={{ marginLeft: 12, fontWeight: 700, background: "none", border: "none", cursor: "pointer", color: "inherit", textDecoration: "underline" }}
             onClick={() => { setError(""); loadRegistrations(); }}
@@ -359,7 +360,7 @@ export default function Registrations() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="empty-message" role="status">
-            <div className="empty-icon" aria-hidden="true">👥</div>
+          <div className="empty-icon" aria-hidden="true"><Users size={36} /></div>
             <strong>No results found</strong>
             <p>{search ? `No registrations match "${search}".` : "No registrations yet."}</p>
           </div>
@@ -475,7 +476,7 @@ export default function Registrations() {
               </div>
               <div><dt>Guests</dt><dd>{selected.guests}</dd></div>
               <div><dt>T-Shirt</dt><dd>{selected.tshirt_size ? `${selected.tshirt_size} × ${selected.tshirt_quantity}` : "—"}</dd></div>
-              <div><dt>Privacy Consent</dt><dd>{selected.privacy_consent ? "Given ✓" : "Not given"}</dd></div>
+              <div><dt>Privacy Consent</dt><dd>{selected.privacy_consent ? <>Given <Check size={13} style={{ display: "inline", verticalAlign: "middle" }} /></> : "Not given"}</dd></div>
             </dl>
 
             {selected.favourite_memory && (
@@ -548,14 +549,14 @@ export default function Registrations() {
             <div aria-live="polite" aria-atomic="true">
               {saveType === "success" && (
                 <div className="admin-success-message" role="status">
-                  <span aria-hidden="true">✓ </span>{saveText}
+                  <Check size={15} aria-hidden="true" /> {saveText}
                 </div>
               )}
             </div>
             <div aria-live="assertive">
               {saveType === "error" && (
                 <div className="admin-error-message" role="alert">
-                  <span aria-hidden="true">⚠ </span>{saveText}
+                  <AlertTriangle size={15} aria-hidden="true" /> {saveText}
                 </div>
               )}
             </div>

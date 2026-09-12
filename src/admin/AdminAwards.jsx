@@ -1,40 +1,44 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
-import "./AdminPages.css";
+import {
+  Trophy, RefreshCw, AlertTriangle, Check, Vote, X,
+  Briefcase, Heart, Laugh, Shirt, Star, Target, TrendingUp,
+} from "lucide-react";
 
-// ── Default icons ─────────────────────────────────────────────
-const CATEGORY_ICONS = {
-  "Most Outstanding": "🏆",
-  "Most Successful":  "💼",
-  "Most Supportive":  "❤️",
-  "Most Humorous":    "😂",
-  "Best Dressed":     "👔",
-  "Most Influential": "🌟",
-  "Most Likely":      "🎯",
-  "Class Clown":      "🤣",
-  "Most Improved":    "📈",
+// ── Category icon component (replaces emoji strings) ──────────
+const CATEGORY_ICON_MAP = {
+  "Most Outstanding": Trophy,
+  "Most Successful":  Briefcase,
+  "Most Supportive":  Heart,
+  "Most Humorous":    Laugh,
+  "Best Dressed":     Shirt,
+  "Most Influential": Star,
+  "Most Likely":      Target,
+  "Class Clown":      Laugh,
+  "Most Improved":    TrendingUp,
 };
 
-function getCategoryIcon(category) {
-  if (category.icon && category.icon !== "🏆") return category.icon;
-  for (const [key, icon] of Object.entries(CATEGORY_ICONS)) {
-    if (category.name.includes(key)) return icon;
+function CategoryIcon({ category, size = 24 }) {
+  for (const [key, Icon] of Object.entries(CATEGORY_ICON_MAP)) {
+    if (category?.name?.includes(key)) return <Icon size={size} aria-hidden="true" />;
   }
-  return "🏆";
+  return <Trophy size={size} aria-hidden="true" />;
 }
+import "./AdminPages.css";
+
+// ── Default icons removed — using Lucide CategoryIcon component instead ──────
 
 const DEFAULT_CATEGORIES = [
-  { name: "Most Outstanding Classmate",   icon: "🏆", description: "The classmate who stands out in every way." },
-  { name: "Most Successful Entrepreneur", icon: "💼", description: "The classmate who has built something remarkable." },
-  { name: "Most Supportive Classmate",    icon: "❤️", description: "Always there for others, no matter what." },
-  { name: "Most Humorous Classmate",      icon: "😂", description: "The one who keeps everyone laughing." },
-  { name: "Best Dressed",                 icon: "👔", description: "The classmate with unmatched style." },
-  { name: "Most Influential Classmate",   icon: "🌟", description: "Making a difference in the lives of others." },
+  { name: "Most Outstanding Classmate",   description: "The classmate who stands out in every way." },
+  { name: "Most Successful Entrepreneur", description: "The classmate who has built something remarkable." },
+  { name: "Most Supportive Classmate",    description: "Always there for others, no matter what." },
+  { name: "Most Humorous Classmate",      description: "The one who keeps everyone laughing." },
+  { name: "Best Dressed",                 description: "The classmate with unmatched style." },
+  { name: "Most Influential Classmate",   description: "Making a difference in the lives of others." },
 ];
 
 const emptyCategory = {
   name: "",
-  icon: "🏆",
   description: "",
   nomination_open: true,
   voting_open: false,
@@ -237,7 +241,6 @@ export default function AdminAwards() {
     setEditingCategory(cat);
     setForm({
       name:            cat.name || "",
-      icon:            cat.icon || "🏆",
       description:     cat.description || "",
       nomination_open: cat.nomination_open,
       voting_open:     cat.voting_open,
@@ -271,7 +274,6 @@ export default function AdminAwards() {
     try {
       const payload = {
         name:            form.name.trim(),
-        icon:            form.icon || "🏆",
         description:     form.description.trim() || null,
         nomination_open: form.nomination_open,
         voting_open:     form.voting_open,
@@ -431,7 +433,7 @@ export default function AdminAwards() {
           <div>
             <p className="page-eyebrow">AWARD MANAGEMENT</p>
             <h1 style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span aria-hidden="true">{getCategoryIcon(activeCategory)}</span>
+              <span aria-hidden="true"><CategoryIcon category={activeCategory} size={28} /></span>
               {activeCategory.name}
             </h1>
             {activeCategory.description && (
@@ -451,7 +453,7 @@ export default function AdminAwards() {
               onClick={loadData}
               aria-label="Refresh award data"
             >
-              <span aria-hidden="true">↻</span> Refresh
+              <RefreshCw size={14} aria-hidden="true" /> Refresh
             </button>
           </div>
         </div>
@@ -460,14 +462,14 @@ export default function AdminAwards() {
         <div aria-live="polite" aria-atomic="true">
           {message && (
             <div className="admin-success-message" role="status">
-              <span aria-hidden="true">✓ </span>{message}
+              <Check size={15} aria-hidden="true" /> {message}
             </div>
           )}
         </div>
         <div aria-live="assertive">
           {error && (
             <div className="admin-error-message" role="alert">
-              <span aria-hidden="true">⚠ </span>{error}
+              <AlertTriangle size={15} aria-hidden="true" /> {error}
             </div>
           )}
         </div>
@@ -559,7 +561,7 @@ export default function AdminAwards() {
 
           {activeSortedNominees.length === 0 ? (
             <div className="empty-message" role="status">
-              <div className="empty-icon" aria-hidden="true">🗳️</div>
+              <div className="empty-icon" aria-hidden="true"><Vote size={36} /></div>
               <strong>No nominations yet</strong>
               <p>Open nominations so classmates can start nominating.</p>
             </div>
@@ -593,7 +595,7 @@ export default function AdminAwards() {
                       </td>
                       <td>
                         {row.isFinalist
-                          ? <span className="admin-status-badge status-paid" aria-label="Is a finalist">✓ Finalist</span>
+                          ? <span className="admin-status-badge status-paid" aria-label="Is a finalist"><Check size={13} style={{ display: "inline", verticalAlign: "middle" }} /> Finalist</span>
                           : <span className="admin-status-badge status-unpaid" aria-label="Not yet a finalist">Not Added</span>}
                       </td>
                       <td>
@@ -638,7 +640,7 @@ export default function AdminAwards() {
 
           {activeFinalistResults.length === 0 ? (
             <div className="empty-message" role="status">
-              <div className="empty-icon" aria-hidden="true">🏆</div>
+              <div className="empty-icon" aria-hidden="true"><Trophy size={36} /></div>
               <strong>No finalists yet</strong>
               <p>Add finalists from the nominations above.</p>
             </div>
@@ -667,7 +669,7 @@ export default function AdminAwards() {
                       </td>
                       <td>
                         <strong>
-                          {index === 0 && totalVotes > 0 && <span aria-hidden="true">🏆 </span>}
+                          {index === 0 && totalVotes > 0 && <Trophy size={14} aria-hidden="true" style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />}
                           {f.classmate.full_name}
                           {index === 0 && totalVotes > 0 && <span className="sr-only"> (current leader)</span>}
                         </strong>
@@ -737,7 +739,7 @@ export default function AdminAwards() {
             </button>
           )}
           <button className="secondary-button" onClick={loadData} aria-label="Refresh awards list">
-            <span aria-hidden="true">↻</span> Refresh
+            <RefreshCw size={14} aria-hidden="true" /> Refresh
           </button>
           <button className="admin-primary-button" onClick={openNewCategory} aria-label="Create a new award category">
             + Add Award
@@ -749,14 +751,14 @@ export default function AdminAwards() {
       <div aria-live="polite" aria-atomic="true">
         {message && (
           <div className="admin-success-message" role="status">
-            <span aria-hidden="true">✓ </span>{message}
+            <Check size={15} aria-hidden="true" /> {message}
           </div>
         )}
       </div>
       <div aria-live="assertive">
         {error && (
           <div className="admin-error-message" role="alert">
-            <span aria-hidden="true">⚠ </span>{error}
+            <AlertTriangle size={15} aria-hidden="true" /> {error}
           </div>
         )}
       </div>
@@ -784,7 +786,7 @@ export default function AdminAwards() {
       {/* Category grid */}
       {categories.length === 0 ? (
         <div className="awards-admin-empty" role="status">
-          <span aria-hidden="true">🏆</span>
+          <span aria-hidden="true"><Trophy size={48} /></span>
           <h3>No award categories yet</h3>
           <p>Create your first award or add the default set to get started quickly.</p>
           <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
@@ -798,12 +800,11 @@ export default function AdminAwards() {
             const nomCount      = nominations.filter((n) => n.category_id === cat.id).length;
             const finalistCount = finalists.filter((f) => f.category_id === cat.id).length;
             const voteCount     = votes.filter((v) => v.category_id === cat.id).length;
-            const icon          = getCategoryIcon(cat);
 
             return (
               <div key={cat.id} className="awards-admin-card" role="listitem">
                 <div className="awards-admin-card-header">
-                  <span className="awards-admin-icon" aria-hidden="true">{icon}</span>
+                  <span className="awards-admin-icon" aria-hidden="true"><CategoryIcon category={cat} size={24} /></span>
                   <div className="awards-admin-card-title">
                     <h3>{cat.name}</h3>
                     {cat.description && <p>{cat.description}</p>}
@@ -896,7 +897,7 @@ export default function AdminAwards() {
             <div aria-live="assertive">
               {error && (
                 <div className="admin-error-message" role="alert">
-                  <span aria-hidden="true">⚠ </span>{error}
+                  <AlertTriangle size={15} aria-hidden="true" /> {error}
                 </div>
               )}
             </div>
@@ -922,26 +923,9 @@ export default function AdminAwards() {
                 />
                 {formErrors.name && (
                   <p id="award-name-error" className="contrib-field-error" role="alert">
-                    <span aria-hidden="true">⚠ </span>{formErrors.name}
+                    <AlertTriangle size={13} aria-hidden="true" /> {formErrors.name}
                   </p>
                 )}
-              </div>
-
-              <div>
-                <label htmlFor="award-icon">Icon (emoji)</label>
-                <input
-                  id="award-icon"
-                  type="text"
-                  name="icon"
-                  value={form.icon}
-                  onChange={handleChange}
-                  placeholder="🏆"
-                  maxLength={4}
-                  aria-describedby="award-icon-hint"
-                />
-                <p id="award-icon-hint" className="awards-field-hint" style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
-                  Paste a single emoji to represent this award.
-                </p>
               </div>
 
               <div>

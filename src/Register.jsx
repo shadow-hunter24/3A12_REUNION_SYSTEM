@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "./lib/supabase";
+import { AlertTriangle, Check, X, PartyPopper } from "lucide-react";
 import "./Register.css";
 
 function generateClassId() {
@@ -156,7 +157,7 @@ function FieldError({ id, message }) {
   if (!message) return null;
   return (
     <p className="field-error" id={id} role="alert" aria-live="polite">
-      <span aria-hidden="true">⚠ </span>
+      <AlertTriangle size={13} aria-hidden="true" />
       {message}
     </p>
   );
@@ -351,7 +352,7 @@ export default function Register() {
     return (
       <div className="registration-page">
         <div className="success-card" role="main" aria-labelledby="success-heading">
-          <div className="success-icon" aria-hidden="true">✓</div>
+          <div className="success-icon" aria-hidden="true"><Check size={36} /></div>
           <p className="eyebrow">REGISTRATION SUCCESSFUL</p>
           <h1 id="success-heading">
             Welcome back, {formData.full_name.trim().split(" ")[0]}!
@@ -445,7 +446,7 @@ export default function Register() {
         {/* Submit error banner */}
         {submitError && (
           <div className="submit-error-banner" role="alert" aria-live="assertive">
-            <span className="error-icon" aria-hidden="true">✕</span>
+            <span className="error-icon" aria-hidden="true"><X size={16} /></span>
             <div>
               <strong>Registration couldn't be submitted</strong>
               <p>{submitError}</p>
@@ -740,7 +741,7 @@ export default function Register() {
                     aria-describedby="attending-yes-desc"
                   />
                   <span>
-                    <strong>Yes, I'll be there</strong> 🎉
+                    <strong>Yes, I'll be there</strong> <PartyPopper size={15} aria-hidden="true" style={{ display: "inline", verticalAlign: "middle" }} />
                     <span id="attending-yes-desc" className="radio-desc">I plan to attend in person.</span>
                   </span>
                 </label>

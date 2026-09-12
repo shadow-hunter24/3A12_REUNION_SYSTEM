@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { RefreshCw, AlertTriangle, Check, X } from "lucide-react";
 import "./AdminPages.css";
 
 const DEFAULT_EXPECTED = 500;
@@ -47,7 +48,7 @@ function FieldErr({ id, msg }) {
   if (!msg) return null;
   return (
     <p id={id} className="contrib-field-error" role="alert">
-      <span aria-hidden="true">⚠ </span>{msg}
+      <AlertTriangle size={13} aria-hidden="true" /> {msg}
     </p>
   );
 }
@@ -521,7 +522,7 @@ export default function Contributions() {
           </p>
         </div>
         <button className="secondary-button" onClick={loadData} aria-label="Refresh data">
-          <span aria-hidden="true">↻</span> Refresh
+          <RefreshCw size={14} aria-hidden="true" /> Refresh
         </button>
       </div>
 
@@ -529,14 +530,14 @@ export default function Contributions() {
       <div aria-live="polite" aria-atomic="true">
         {message && (
           <div className="admin-success-message" role="status">
-            <span aria-hidden="true">✓ </span>{message}
+            <Check size={15} aria-hidden="true" /> {message}
           </div>
         )}
       </div>
       <div aria-live="assertive">
         {error && (
           <div className="admin-error-message" role="alert">
-            <span aria-hidden="true">⚠ </span>{error}
+            <AlertTriangle size={15} aria-hidden="true" /> {error}
           </div>
         )}
       </div>
@@ -726,7 +727,7 @@ export default function Contributions() {
             />
 
             <div aria-live="assertive">
-              {error && <div className="admin-error-message" role="alert"><span aria-hidden="true">⚠ </span>{error}</div>}
+              {error && <div className="admin-error-message" role="alert"><AlertTriangle size={15} aria-hidden="true" /> {error}</div>}
             </div>
 
             <form className="admin-form" onSubmit={handleSubmitAdd} noValidate>
@@ -764,7 +765,7 @@ export default function Contributions() {
             </p>
 
             <div aria-live="assertive">
-              {error && <div className="admin-error-message" role="alert"><span aria-hidden="true">⚠ </span>{error}</div>}
+              {error && <div className="admin-error-message" role="alert"><AlertTriangle size={15} aria-hidden="true" /> {error}</div>}
             </div>
 
             <form className="admin-form" onSubmit={handleSubmitEditPayment} noValidate>
@@ -809,10 +810,10 @@ export default function Contributions() {
             />
 
             <div aria-live="assertive">
-              {error && <div className="admin-error-message" role="alert" style={{ marginTop: 12 }}><span aria-hidden="true">⚠ </span>{error}</div>}
+              {error && <div className="admin-error-message" role="alert" style={{ marginTop: 12 }}><AlertTriangle size={15} aria-hidden="true" /> {error}</div>}
             </div>
             <div aria-live="polite">
-              {message && <div className="admin-success-message" role="status" style={{ marginTop: 12 }}><span aria-hidden="true">✓ </span>{message}</div>}
+              {message && <div className="admin-success-message" role="status" style={{ marginTop: 12 }}><Check size={15} aria-hidden="true" /> {message}</div>}
             </div>
 
             {/* Danger zone — delete entire contribution record */}
@@ -887,7 +888,7 @@ export default function Contributions() {
                             onClick={() => setDeletingPayment(p)}
                             aria-label={`Delete payment of ${formatCurrency(p.amount)} on ${formatDate(p.payment_date)}`}
                           >
-                            <span aria-hidden="true">✕</span>
+                            <X size={14} aria-hidden="true" />
                           </button>
                         )}
                       </div>
@@ -936,7 +937,7 @@ export default function Contributions() {
             <div aria-live="assertive">
               {expectedFormError && (
                 <div className="admin-error-message" role="alert">
-                  <span aria-hidden="true">⚠ </span>{expectedFormError}
+                  <AlertTriangle size={15} aria-hidden="true" /> {expectedFormError}
                 </div>
               )}
             </div>

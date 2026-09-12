@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import {
   Trophy, Briefcase, Heart, Laugh, Shirt, Star, Target,
-  TrendingUp, AlertTriangle, Check, Vote,
+  TrendingUp, AlertTriangle, Check, Vote, X, Info,
 } from "lucide-react";
 import "./Awards.css";
 
@@ -533,12 +533,12 @@ export default function AwardsPage() {
                         <div className="public-award-status" aria-hidden="true">
                           {cat.nomination_open && (
                             <span className="status-open">
-                              {hasNominated ? "✓ Nominated" : "Nominations Open"}
+                              {hasNominated ? <><Check size={12} style={{ display: "inline", verticalAlign: "middle" }} /> Nominated</> : "Nominations Open"}
                             </span>
                           )}
                           {cat.voting_open && (
                             <span className="status-open">
-                              {hasVoted ? "✓ Voted" : "Voting Open"}
+                              {hasVoted ? <><Check size={12} style={{ display: "inline", verticalAlign: "middle" }} /> Voted</> : "Voting Open"}
                             </span>
                           )}
                           {!isOpen && <span className="status-closed">Closed</span>}
@@ -571,7 +571,7 @@ export default function AwardsPage() {
 
             {myNominations[activeCategory.id] && (
               <div className="awards-info-banner" role="note">
-                <span aria-hidden="true">ℹ </span>
+                <Info size={14} aria-hidden="true" style={{ flexShrink: 0 }} />
                 You've already nominated someone for this award.
                 Submitting again will <strong>replace</strong> your previous choice.
               </div>
@@ -612,7 +612,7 @@ export default function AwardsPage() {
                     onClick={() => setNomineeSearch("")}
                     aria-label="Clear search"
                   >
-                    <span aria-hidden="true">✕</span>
+                    <X size={14} aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -735,7 +735,7 @@ export default function AwardsPage() {
 
             {myVotes[activeCategory.id] ? (
               <div className="awards-voted-banner" role="status" aria-live="polite">
-                <span aria-hidden="true">✓ </span>
+                <Check size={15} aria-hidden="true" style={{ flexShrink: 0 }} />
                 Your vote has been recorded for this award. Thank you!
               </div>
             ) : (
@@ -778,7 +778,7 @@ export default function AwardsPage() {
 
                     {myVotes[activeCategory.id] ? (
                       <span className="vote-cast-label" aria-label="You voted for this finalist">
-                        Voted ✓
+                        <Check size={13} style={{ display: "inline", verticalAlign: "middle" }} /> Voted
                       </span>
                     ) : (
                       <button

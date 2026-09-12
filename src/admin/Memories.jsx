@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { RefreshCw, AlertTriangle, Check, X, MessageSquare, Building2 } from "lucide-react";
 import "./AdminPages.css";
 
 // ── Inline confirm dialog ─────────────────────────────────────
@@ -276,7 +277,7 @@ export default function Memories() {
           onClick={loadData}
           aria-label="Refresh memories"
         >
-          <span aria-hidden="true">↻</span> Refresh
+          <RefreshCw size={14} aria-hidden="true" /> Refresh
         </button>
       </div>
 
@@ -284,14 +285,14 @@ export default function Memories() {
       <div aria-live="polite" aria-atomic="true">
         {message && (
           <div className="admin-success-message" role="status">
-            <span aria-hidden="true">✓ </span>{message}
+            <Check size={15} aria-hidden="true" /> {message}
           </div>
         )}
       </div>
       <div aria-live="assertive">
         {error && (
           <div className="admin-error-message" role="alert">
-            <span aria-hidden="true">⚠ </span>{error}
+            <AlertTriangle size={15} aria-hidden="true" /> {error}
           </div>
         )}
       </div>
@@ -368,7 +369,7 @@ export default function Memories() {
             </div>
           ) : filteredSubmissions.length === 0 ? (
             <div className="empty-message" role="status">
-              <div className="empty-icon" aria-hidden="true">💭</div>
+              <div className="empty-icon" aria-hidden="true"><MessageSquare size={36} /></div>
               <strong>{search ? `No submissions match "${search}"` : "No memory submissions yet"}</strong>
               <p>Classmates share their favourite memories during registration.</p>
             </div>
@@ -389,7 +390,7 @@ export default function Memories() {
                       </div>
                       {isOnWall && (
                         <span className="mem-badge-published" aria-label="Published on public wall">
-                          ✓ On Wall
+                          <Check size={13} style={{ display: "inline", verticalAlign: "middle" }} /> On Wall
                         </span>
                       )}
                     </div>
@@ -442,7 +443,7 @@ export default function Memories() {
             </div>
           ) : filteredWall.length === 0 ? (
             <div className="empty-message" role="status">
-              <div className="empty-icon" aria-hidden="true">🏛️</div>
+            <div className="empty-icon" aria-hidden="true"><Building2 size={36} /></div>
               <strong>{search ? `No entries match "${search}"` : "The memory wall is empty"}</strong>
               <p>Approve memories from the Submissions tab to publish them here.</p>
             </div>
@@ -468,7 +469,7 @@ export default function Memories() {
                         onClick={() => setConfirmRemove(w)}
                         aria-label={`Remove ${w.display_name}'s memory from wall`}
                       >
-                        <span aria-hidden="true">✕</span>
+                        <X size={14} aria-hidden="true" />
                       </button>
                     </div>
                   </div>

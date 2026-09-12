@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import {
+  Users, Check, Clock, Ticket, RefreshCw, AlertTriangle,
+  Undo2, PartyPopper,
+} from "lucide-react";
 import "./AdminPages.css";
 
 function formatTime(ts) {
@@ -74,7 +78,7 @@ export default function Checkin() {
             : c
         )
       );
-      setMessage(`✓ ${person.full_name} checked in.`);
+      setMessage(`${person.full_name} checked in.`);
       // Auto-clear message after 3 s
       setTimeout(() => setMessage(""), 3000);
     }
@@ -101,7 +105,7 @@ export default function Checkin() {
             : c
         )
       );
-      setMessage(`↩ ${person.full_name} check-in undone.`);
+      setMessage(`${person.full_name} check-in undone.`);
       setTimeout(() => setMessage(""), 3000);
     }
     setSaving(null);
@@ -152,7 +156,7 @@ export default function Checkin() {
           aria-label="Refresh check-in list"
           aria-busy={loading}
         >
-          <span aria-hidden="true">↻</span> Refresh
+          <RefreshCw size={14} aria-hidden="true" /> Refresh
         </button>
       </div>
 
@@ -167,7 +171,7 @@ export default function Checkin() {
       <div aria-live="assertive">
         {error && (
           <div className="admin-error-message" role="alert">
-            <span aria-hidden="true">⚠ </span>{error}
+            <AlertTriangle size={15} aria-hidden="true" /> {error}
           </div>
         )}
       </div>
@@ -179,28 +183,28 @@ export default function Checkin() {
         aria-label="Check-in statistics"
       >
         <div className="checkin-stat-card checkin-stat-total" role="listitem">
-          <span aria-hidden="true">👥</span>
+          <span aria-hidden="true"><Users size={22} /></span>
           <div>
             <strong>{stats.total}</strong>
             <p>Expected Classmates</p>
           </div>
         </div>
         <div className="checkin-stat-card checkin-stat-in" role="listitem">
-          <span aria-hidden="true">✓</span>
+          <span aria-hidden="true"><Check size={22} /></span>
           <div>
             <strong>{stats.checkedIn}</strong>
             <p>Checked In</p>
           </div>
         </div>
         <div className="checkin-stat-card checkin-stat-out" role="listitem">
-          <span aria-hidden="true">⏳</span>
+          <span aria-hidden="true"><Clock size={22} /></span>
           <div>
             <strong>{stats.remaining}</strong>
             <p>Not Yet Arrived</p>
           </div>
         </div>
         <div className="checkin-stat-card checkin-stat-people" role="listitem">
-          <span aria-hidden="true">🎟️</span>
+          <span aria-hidden="true"><Ticket size={22} /></span>
           <div>
             <strong>{stats.checkedInPeople} / {stats.totalPeople}</strong>
             <p>People (incl. guests)</p>
@@ -264,7 +268,7 @@ export default function Checkin() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-message" role="status">
-          <div className="empty-icon" aria-hidden="true">🎟️</div>
+          <div className="empty-icon" aria-hidden="true"><Ticket size={36} /></div>
           <strong>
             {search
               ? `No classmates match "${search}"`
@@ -274,7 +278,7 @@ export default function Checkin() {
           </strong>
           {filter === "OUT" && !search && (
             <p style={{ color: "#198754", marginTop: 8 }}>
-              All expected classmates have been checked in 🎉
+              All expected classmates have been checked in <PartyPopper size={16} aria-hidden="true" style={{ display: "inline", verticalAlign: "middle" }} />
             </p>
           )}
         </div>
@@ -297,7 +301,7 @@ export default function Checkin() {
                 className={`checkin-avatar ${person.checked_in ? "checkin-avatar--in" : ""}`}
                 aria-hidden="true"
               >
-                {person.checked_in ? "✓" : getInitials(person.full_name)}
+                {person.checked_in ? <Check size={16} aria-hidden="true" /> : getInitials(person.full_name)}
               </div>
 
               {/* Info */}
@@ -322,7 +326,7 @@ export default function Checkin() {
               <div className="checkin-action">
                 {person.checked_in ? (
                   <>
-                    <span className="checkin-badge-in" aria-hidden="true">✓ Checked In</span>
+                    <span className="checkin-badge-in" aria-hidden="true"><Check size={13} style={{ display: "inline", verticalAlign: "middle" }} /> Checked In</span>
                     <button
                       className="checkin-undo-btn"
                       onClick={() => undoCheckIn(person)}

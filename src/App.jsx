@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "./lib/supabase";
-import { GraduationCap, Handshake, Camera, Trophy, Briefcase, ImageIcon } from "lucide-react";
+import { GraduationCap, Handshake, Camera, Trophy, Briefcase, ImageIcon, Menu, X } from "lucide-react";
 import "./App.css";
 
 const REUNION_DATE = new Date("2026-12-31T10:00:00");
@@ -96,7 +96,7 @@ function App() {
           aria-expanded={menuOpen}
           aria-controls="mobile-nav"
         >
-          <span aria-hidden="true">{menuOpen ? "✕" : "☰"}</span>
+          <span aria-hidden="true">{menuOpen ? <X size={20} /> : <Menu size={20} />}</span>
         </button>
       </nav>
 
