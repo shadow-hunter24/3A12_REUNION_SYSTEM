@@ -135,17 +135,17 @@ export function useNotifications() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "classmates" },
-        ({ new: record }) => add(buildNotification("classmates", record))
+        (payload) => add(buildNotification("classmates", payload.new))
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "award_nominations" },
-        ({ new: record }) => add(buildNotification("award_nominations", record))
+        (payload) => add(buildNotification("award_nominations", payload.new))
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "award_votes" },
-        ({ new: record }) => add(buildNotification("award_votes", record))
+        (payload) => add(buildNotification("award_votes", payload.new))
       )
       .subscribe();
 

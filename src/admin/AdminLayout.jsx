@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Component } from "react";
 import { supabase } from "../lib/supabase";
 import {
   LayoutDashboard, Users, Wallet, Shirt, Trophy,
@@ -7,6 +7,16 @@ import {
 } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 import "./AdminLayout.css";
+
+// ── Error boundary — keeps a NotificationBell crash from blanking the whole layout
+class BellErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { crashed: false }; }
+  static getDerivedStateFromError() { return { crashed: true }; }
+  render() {
+    if (this.state.crashed) return null; // silently hide bell on error
+    return this.props.children;
+  }
+}
 
 const menu = [
   { name: "Dashboard",     path: "/admin",               Icon: LayoutDashboard },
@@ -89,7 +99,7 @@ export default function AdminLayout() {
       <div className="admin-topbar" role="banner">
         <div className="admin-brand-mobile" aria-hidden="true">3A12</div>
         <div className="admin-topbar-right">
-          <NotificationBell />
+          <BellErrorBoundary><NotificationBell /></BellErrorBoundary>
           <button
             className="mobile-menu-button"
             onClick={() => setMobileOpen((prev) => !prev)}
@@ -165,7 +175,7 @@ export default function AdminLayout() {
             <span title={user?.email}>{user?.email}</span>
           </div>
 
-          <NotificationBell />
+          <BellErrorBoundary><NotificationBell /></BellErrorBoundary>
 
           <button
             onClick={() => setShowLogoutConfirm(true)}
