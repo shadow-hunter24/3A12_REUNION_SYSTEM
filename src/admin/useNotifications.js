@@ -62,11 +62,11 @@ function buildNotification(table, record) {
   }
 }
 
-// Check for new rows created since the last session started
-async function fetchRecent(table, since, limit = 5) {
+// Check for new rows created since a given timestamp
+async function fetchRecent(table, since, limit = 10) {
   const { data } = await supabase
     .from(table)
-    .select("*")
+    .select("id, created_at, full_name")
     .gt("created_at", since)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -76,9 +76,9 @@ async function fetchRecent(table, since, limit = 5) {
 // ── Hook ───────────────────────────────────────────────────────
 export function useNotifications() {
   const [notifications, setNotifications] = useState(() => load());
-  const channelRef = useRef(null);
-  // Track session start so we only back-fill truly new rows
-  const sessionStart = useRef(new Date(Date.now() - 30_000).toISOString()); // last 30 s
+  const channelRef    = useRef(null);
+  // Advances each poll — tracks the latest timestamp we've already processed
+  const lastSeenRef   = useRef(new Date(Date.now() - 60_000).toISOString());
 
   const unread = notifications.filter((n) => !n.read).length;
 
@@ -114,24 +114,39 @@ export function useNotifications() {
 
   // ── Real-time subscriptions ─────────────────────────────────
   useEffect(() => {
-    // Back-fill any activity in the last 30 seconds (page was refreshed, etc.)
-    const since = sessionStart.current;
-    Promise.all([
-      fetchRecent("classmates",        since),
-      fetchRecent("award_nominations", since),
-      fetchRecent("award_votes",       since),
-    ]).then(([regs, noms, votes]) => {
-      const backfill = [
-        ...regs.map((r)  => buildNotification("classmates",        r)),
-        ...noms.map((n)  => buildNotification("award_nominations", n)),
-        ...votes.map((v) => buildNotification("award_votes",       v)),
-      ].filter(Boolean);
-      backfill.forEach(add);
-    });
+    // Back-fill any activity in the last 60 seconds on mount
+    const since = lastSeenRef.current;
 
-    // Subscribe to real-time inserts
+    async function poll() {
+      const now = new Date().toISOString();
+      try {
+        const [regs, noms, votes] = await Promise.all([
+          fetchRecent("classmates",        lastSeenRef.current),
+          fetchRecent("award_nominations", lastSeenRef.current),
+          fetchRecent("award_votes",       lastSeenRef.current),
+        ]);
+        const items = [
+          ...regs.map((r)  => buildNotification("classmates",        r)),
+          ...noms.map((n)  => buildNotification("award_nominations", n)),
+          ...votes.map((v) => buildNotification("award_votes",       v)),
+        ].filter(Boolean);
+        items.forEach(add);
+        // Advance the cursor so next poll only picks up newer records
+        lastSeenRef.current = now;
+      } catch (e) {
+        console.warn("[Notifications] poll error:", e);
+      }
+    }
+
+    // Initial backfill
+    poll();
+
+    // Poll every 30 seconds as fallback (catches activity even if websocket misses it)
+    const pollInterval = setInterval(poll, 30_000);
+
+    // Subscribe to real-time inserts — runs under the authenticated session
     const channel = supabase
-      .channel("admin-notifications")
+      .channel("admin-notifications", { config: { private: false } })
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "classmates" },
@@ -147,11 +162,15 @@ export function useNotifications() {
         { event: "INSERT", schema: "public", table: "award_votes" },
         (payload) => add(buildNotification("award_votes", payload.new))
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (err) console.warn("[Notifications] subscription error:", err);
+        else console.log("[Notifications] status:", status);
+      });
 
     channelRef.current = channel;
 
     return () => {
+      clearInterval(pollInterval);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
